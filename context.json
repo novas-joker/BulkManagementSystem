@@ -1,0 +1,1672 @@
+{
+    "project": {
+        "name": "MailForge",
+        "version": "1.0.0",
+        "type": "Bulk Email Management System",
+        "description": "MailForge is a production-oriented bulk email campaign management platform for managing contacts, audiences, email templates, campaigns, email delivery, scheduling, tracking, analytics, suppression and external email campaign integrations.",
+        "primary_email_provider": "ZeptoMail",
+        "campaign_integration": "Zoho Campaigns",
+        "architecture": "Clean Architecture",
+        "backend": "Python FastAPI",
+        "frontend": "React TypeScript Vite",
+        "database": "PostgreSQL",
+        "cache_and_queue": "Redis",
+        "orm": "SQLAlchemy",
+        "migration": "Alembic",
+        "background_jobs": "Celery",
+        "deployment": "Docker Compose"
+    },
+    "environment": {
+        "required_variables": {
+            "APP_ENV": {
+                "type": "string",
+                "example": "development",
+                "description": "Application environment."
+            },
+            "APP_URL": {
+                "type": "string",
+                "example": "http://localhost:5000",
+                "description": "Backend/public application URL."
+            },
+            "FRONTEND_URL": {
+                "type": "string",
+                "example": "http://localhost:5173",
+                "description": "Frontend application URL."
+            },
+            "LOG_LEVEL": {
+                "type": "string",
+                "example": "INFO",
+                "allowed": [
+                    "DEBUG",
+                    "INFO",
+                    "WARNING",
+                    "ERROR",
+                    "CRITICAL"
+                ]
+            },
+            "DATABASE_URL": {
+                "type": "string",
+                "description": "Primary asynchronous PostgreSQL database connection string."
+            },
+            "SYNC_DATABASE_URL": {
+                "type": "string",
+                "description": "Synchronous PostgreSQL database connection string for migrations or synchronous infrastructure operations."
+            },
+            "REDIS_URL": {
+                "type": "string",
+                "description": "Redis connection string used for caching, Celery broker and background-job coordination."
+            },
+            "JWT_SECRET": {
+                "type": "secret",
+                "description": "Secret used to sign JWT access tokens."
+            },
+            "JWT_ALGORITHM": {
+                "type": "string",
+                "example": "HS256",
+                "description": "JWT signing algorithm."
+            },
+            "ACCESS_TOKEN_EXPIRE_MINUTES": {
+                "type": "integer",
+                "description": "Short-lived access token expiration."
+            },
+            "ACCESS_TOKEN_EXPIRE_DAYS": {
+                "type": "integer",
+                "description": "Longer session/refresh-related expiration configuration."
+            },
+            "ENCRYPTION_KEY": {
+                "type": "secret",
+                "description": "Application encryption key used to encrypt sensitive credentials such as provider secrets."
+            },
+            "ZEPTOMAIL_API_URL": {
+                "type": "string",
+                "description": "ZeptoMail API base URL."
+            },
+            "ZEPTOMAIL_SEND_MAIL_TOKEN": {
+                "type": "secret",
+                "description": "ZeptoMail send-mail authentication token."
+            },
+            "ZEPTOMAIL_MOCK": {
+                "type": "boolean",
+                "example": false,
+                "description": "When enabled, ZeptoMail delivery is mocked for local development."
+            },
+            "ZOHO_CLIENT_ID": {
+                "type": "secret",
+                "description": "Zoho OAuth client ID."
+            },
+            "ZOHO_CLIENT_SECRET": {
+                "type": "secret",
+                "description": "Zoho OAuth client secret."
+            },
+            "ZOHO_REFRESH_TOKEN": {
+                "type": "secret",
+                "description": "Zoho OAuth refresh token."
+            },
+            "ZOHO_CAMPAIGNS_API_URL": {
+                "type": "string",
+                "description": "Zoho Campaigns API base URL."
+            },
+            "ZOHO_CAMPAIGNS_MOCK": {
+                "type": "boolean",
+                "example": false,
+                "description": "When enabled, Zoho Campaigns API operations are mocked for local development."
+            },
+            "SMTP_HOST": {
+                "type": "string",
+                "description": "SMTP server hostname retained as a configurable provider option."
+            },
+            "SMTP_PORT": {
+                "type": "integer",
+                "description": "SMTP server port."
+            },
+            "SMTP_USERNAME": {
+                "type": "string",
+                "description": "SMTP username."
+            },
+            "SMTP_PASSWORD": {
+                "type": "secret",
+                "description": "SMTP password."
+            }
+        },
+        "env_file": {
+            "APP_ENV": "",
+            "APP_URL": "",
+            "FRONTEND_URL": "",
+            "LOG_LEVEL": "INFO",
+            "DATABASE_URL": "",
+            "SYNC_DATABASE_URL": "",
+            "REDIS_URL": "",
+            "JWT_SECRET": "",
+            "JWT_ALGORITHM": "HS256",
+            "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
+            "ACCESS_TOKEN_EXPIRE_DAYS": "7",
+            "ENCRYPTION_KEY": "",
+            "ZEPTOMAIL_API_URL": "",
+            "ZEPTOMAIL_SEND_MAIL_TOKEN": "",
+            "ZEPTOMAIL_MOCK": "false",
+            "ZOHO_CLIENT_ID": "",
+            "ZOHO_CLIENT_SECRET": "",
+            "ZOHO_REFRESH_TOKEN": "",
+            "ZOHO_CAMPAIGNS_API_URL": "",
+            "ZOHO_CAMPAIGNS_MOCK": "false",
+            "SMTP_HOST": "",
+            "SMTP_PORT": "587",
+            "SMTP_USERNAME": "",
+            "SMTP_PASSWORD": ""
+        },
+        "security_rules": [
+            "Never commit .env files.",
+            "Never expose secrets to the frontend.",
+            "Never return provider secrets through API responses.",
+            "Encrypt stored provider credentials using ENCRYPTION_KEY.",
+            "Never log JWT_SECRET.",
+            "Never log ENCRYPTION_KEY.",
+            "Never log ZEPTOMAIL_SEND_MAIL_TOKEN.",
+            "Never log ZOHO_CLIENT_SECRET.",
+            "Never log ZOHO_REFRESH_TOKEN.",
+            "Never log SMTP_PASSWORD."
+        ]
+    },
+    "lld": {
+        "architecture": {
+            "style": "Clean Architecture + Modular Monolith",
+            "layers": [
+                {
+                    "name": "Presentation Layer",
+                    "responsibility": "HTTP API endpoints, request validation and response serialization.",
+                    "components": [
+                        "FastAPI routers",
+                        "API dependencies",
+                        "Request schemas",
+                        "Response schemas",
+                        "Authentication middleware"
+                    ]
+                },
+                {
+                    "name": "Application Layer",
+                    "responsibility": "Application use cases and orchestration.",
+                    "components": [
+                        "AuthenticationService",
+                        "ContactService",
+                        "ListService",
+                        "SegmentService",
+                        "TemplateService",
+                        "CampaignService",
+                        "AnalyticsService",
+                        "SuppressionService",
+                        "ProviderService",
+                        "IntegrationService"
+                    ]
+                },
+                {
+                    "name": "Domain Layer",
+                    "responsibility": "Business rules and domain entities.",
+                    "components": [
+                        "User",
+                        "Contact",
+                        "MailingList",
+                        "Segment",
+                        "Tag",
+                        "Template",
+                        "Campaign",
+                        "CampaignRecipient",
+                        "EmailEvent",
+                        "Suppression",
+                        "ProviderCredential",
+                        "Integration"
+                    ]
+                },
+                {
+                    "name": "Infrastructure Layer",
+                    "responsibility": "Database, Redis, external APIs and email providers.",
+                    "components": [
+                        "SQLAlchemy repositories",
+                        "PostgreSQL",
+                        "Redis",
+                        "Celery",
+                        "ZeptoMailClient",
+                        "ZohoCampaignsClient",
+                        "SMTPClient"
+                    ]
+                }
+            ]
+        },
+        "dependency_direction": [
+            "API depends on Application",
+            "Application depends on Domain",
+            "Infrastructure implements Application interfaces",
+            "Domain does not depend on FastAPI",
+            "Domain does not depend on PostgreSQL",
+            "Domain does not depend on Redis",
+            "Domain does not depend on ZeptoMail",
+            "Domain does not depend on Zoho"
+        ],
+        "design_patterns": [
+            "Repository Pattern",
+            "Service Layer Pattern",
+            "Dependency Injection",
+            "Factory Pattern",
+            "Strategy Pattern",
+            "Adapter Pattern",
+            "Unit of Work",
+            "DTO Pattern"
+        ]
+    },
+    "domain_modules": {
+        "authentication": {
+            "responsibility": "Authenticate users and authorize access.",
+            "entities": [
+                "User",
+                "RefreshToken"
+            ],
+            "services": [
+                "AuthenticationService",
+                "TokenService",
+                "PasswordService"
+            ],
+            "use_cases": [
+                "LoginUser",
+                "RefreshToken",
+                "LogoutUser",
+                "GetCurrentUser"
+            ]
+        },
+        "contacts": {
+            "responsibility": "Manage email contacts.",
+            "entities": [
+                "Contact",
+                "ContactCustomValue"
+            ],
+            "services": [
+                "ContactService",
+                "ContactImportService",
+                "ContactExportService"
+            ],
+            "use_cases": [
+                "CreateContact",
+                "UpdateContact",
+                "DeleteContact",
+                "GetContact",
+                "ListContacts",
+                "ImportContacts",
+                "ExportContacts",
+                "BulkSubscribe",
+                "BulkUnsubscribe"
+            ]
+        },
+        "audiences": {
+            "responsibility": "Manage lists, tags and dynamic segments.",
+            "entities": [
+                "MailingList",
+                "ListContact",
+                "Tag",
+                "ContactTag",
+                "Segment"
+            ],
+            "services": [
+                "ListService",
+                "TagService",
+                "SegmentService",
+                "AudienceResolver"
+            ],
+            "use_cases": [
+                "CreateList",
+                "AddContactToList",
+                "RemoveContactFromList",
+                "CreateTag",
+                "AssignTag",
+                "CreateSegment",
+                "PreviewSegment",
+                "ResolveCampaignAudience"
+            ]
+        },
+        "templates": {
+            "responsibility": "Manage reusable email templates.",
+            "entities": [
+                "EmailTemplate"
+            ],
+            "services": [
+                "TemplateService",
+                "TemplateRenderer",
+                "PersonalizationService"
+            ],
+            "use_cases": [
+                "CreateTemplate",
+                "UpdateTemplate",
+                "DeleteTemplate",
+                "DuplicateTemplate",
+                "PreviewTemplate",
+                "RenderTemplate",
+                "SendTemplateTest"
+            ]
+        },
+        "campaigns": {
+            "responsibility": "Manage campaign lifecycle.",
+            "entities": [
+                "Campaign",
+                "CampaignRecipient"
+            ],
+            "services": [
+                "CampaignService",
+                "CampaignValidationService",
+                "CampaignAudienceService",
+                "CampaignScheduler",
+                "CampaignDispatcher"
+            ],
+            "use_cases": [
+                "CreateCampaign",
+                "UpdateCampaign",
+                "ReviewCampaign",
+                "SendCampaign",
+                "ScheduleCampaign",
+                "PauseCampaign",
+                "CancelCampaign",
+                "DuplicateCampaign",
+                "GetCampaignProgress",
+                "GetCampaignAnalytics"
+            ]
+        },
+        "delivery": {
+            "responsibility": "Abstract and execute email delivery.",
+            "interfaces": [
+                "EmailProvider"
+            ],
+            "implementations": [
+                "ZeptoMailProvider",
+                "SMTPProvider"
+            ],
+            "services": [
+                "EmailDeliveryService",
+                "EmailRenderingService",
+                "DeliveryTrackingService"
+            ]
+        },
+        "integrations": {
+            "responsibility": "Integrate MailForge with external campaign infrastructure.",
+            "integrations": [
+                "Zoho Campaigns"
+            ],
+            "services": [
+                "ZohoOAuthService",
+                "ZohoCampaignService",
+                "ZohoContactSyncService",
+                "ZohoCampaignSyncService"
+            ]
+        },
+        "tracking": {
+            "responsibility": "Track campaign engagement.",
+            "services": [
+                "OpenTrackingService",
+                "ClickTrackingService",
+                "EventService"
+            ],
+            "events": [
+                "sent",
+                "delivered",
+                "opened",
+                "clicked",
+                "bounced",
+                "complained",
+                "unsubscribed",
+                "failed"
+            ]
+        },
+        "suppression": {
+            "responsibility": "Prevent delivery to prohibited recipients.",
+            "services": [
+                "SuppressionService"
+            ],
+            "rules": [
+                "Unsubscribed addresses are suppressed.",
+                "Hard-bounced addresses are suppressed.",
+                "Complained addresses are suppressed.",
+                "Manually suppressed addresses are suppressed."
+            ]
+        },
+        "analytics": {
+            "responsibility": "Aggregate campaign and system performance.",
+            "services": [
+                "CampaignAnalyticsService",
+                "DashboardAnalyticsService"
+            ]
+        }
+    },
+    "email_provider_architecture": {
+        "interface": {
+            "name": "EmailProvider",
+            "methods": [
+                "send_email",
+                "send_bulk",
+                "send_test_email",
+                "validate_configuration"
+            ]
+        },
+        "provider_selection": {
+            "primary": "ZeptoMail",
+            "fallback": "SMTP"
+        },
+        "provider_rules": [
+            "Application code must depend on EmailProvider abstraction.",
+            "CampaignService must never directly call ZeptoMail.",
+            "CampaignService must never directly call SMTP.",
+            "EmailDeliveryService selects the configured provider.",
+            "ZeptoMail implementation must be isolated behind an adapter.",
+            "SMTP implementation must be isolated behind an adapter."
+        ]
+    },
+    "zeptomail": {
+        "purpose": "Primary transactional/bulk email delivery provider for MailForge.",
+        "configuration": [
+            "ZEPTOMAIL_API_URL",
+            "ZEPTOMAIL_SEND_MAIL_TOKEN",
+            "ZEPTOMAIL_MOCK"
+        ],
+        "classes": [
+            {
+                "name": "ZeptoMailClient",
+                "responsibility": "Low-level HTTP communication with ZeptoMail."
+            },
+            {
+                "name": "ZeptoMailProvider",
+                "responsibility": "Adapt ZeptoMail functionality to EmailProvider."
+            }
+        ],
+        "flow": [
+            "Campaign worker renders email",
+            "EmailDeliveryService validates recipient",
+            "EmailDeliveryService selects ZeptoMailProvider",
+            "ZeptoMailProvider creates provider request",
+            "ZeptoMailClient sends HTTP request",
+            "Provider response is normalized",
+            "CampaignRecipient status is updated",
+            "Delivery event is recorded"
+        ],
+        "mock_mode": {
+            "condition": "ZEPTOMAIL_MOCK=true",
+            "behavior": [
+                "Do not make external API requests.",
+                "Simulate successful provider response.",
+                "Generate development message ID.",
+                "Persist normal campaign delivery state.",
+                "Log that mock delivery was used without exposing secrets."
+            ]
+        }
+    },
+    "zoho_campaigns": {
+        "purpose": "Optional external integration for synchronizing campaign and audience operations with Zoho Campaigns.",
+        "configuration": [
+            "ZOHO_CLIENT_ID",
+            "ZOHO_CLIENT_SECRET",
+            "ZOHO_REFRESH_TOKEN",
+            "ZOHO_CAMPAIGNS_API_URL",
+            "ZOHO_CAMPAIGNS_MOCK"
+        ],
+        "architecture": {
+            "adapter": "ZohoCampaignsClient",
+            "oauth": "ZohoOAuthService",
+            "business_service": "ZohoCampaignService"
+        },
+        "rules": [
+            "Zoho credentials remain backend-only.",
+            "Zoho access tokens must never be exposed to the frontend.",
+            "OAuth token management must be isolated from campaign business logic.",
+            "Zoho API failures must not crash the MailForge application.",
+            "Zoho integration must be independently mockable."
+        ],
+        "possible_operations": [
+            "Authenticate with Zoho",
+            "Refresh Zoho access token",
+            "Synchronize contacts",
+            "Synchronize mailing lists",
+            "Synchronize campaign metadata",
+            "Push campaign metadata",
+            "Retrieve campaign status",
+            "Synchronize campaign statistics"
+        ],
+        "mock_mode": {
+            "condition": "ZOHO_CAMPAIGNS_MOCK=true",
+            "behavior": [
+                "Do not make external Zoho API requests.",
+                "Return deterministic mock responses.",
+                "Allow local development without Zoho credentials."
+            ]
+        }
+    },
+    "smtp": {
+        "purpose": "Secondary or configurable email delivery mechanism.",
+        "configuration": [
+            "SMTP_HOST",
+            "SMTP_PORT",
+            "SMTP_USERNAME",
+            "SMTP_PASSWORD"
+        ],
+        "class": "SMTPProvider",
+        "requirements": [
+            "TLS support",
+            "SSL support where configured",
+            "HTML email",
+            "Plain text fallback",
+            "Connection validation",
+            "Test email",
+            "Credential protection"
+        ]
+    },
+    "database_design": {
+        "users": {
+            "primary_key": "id",
+            "fields": [
+                "id",
+                "email",
+                "password_hash",
+                "first_name",
+                "last_name",
+                "role",
+                "is_active",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "refresh_tokens": {
+            "primary_key": "id",
+            "fields": [
+                "id",
+                "user_id",
+                "token_hash",
+                "expires_at",
+                "revoked_at",
+                "created_at"
+            ],
+            "relationships": [
+                "many refresh tokens belong to one user"
+            ]
+        },
+        "contacts": {
+            "primary_key": "id",
+            "unique": [
+                "email"
+            ],
+            "fields": [
+                "id",
+                "email",
+                "first_name",
+                "last_name",
+                "phone",
+                "company",
+                "job_title",
+                "country",
+                "timezone",
+                "status",
+                "source",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "custom_fields": {
+            "fields": [
+                "id",
+                "name",
+                "field_type",
+                "created_at"
+            ]
+        },
+        "contact_custom_values": {
+            "fields": [
+                "id",
+                "contact_id",
+                "custom_field_id",
+                "value"
+            ]
+        },
+        "mailing_lists": {
+            "fields": [
+                "id",
+                "name",
+                "description",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "list_contacts": {
+            "composite_primary_key": [
+                "list_id",
+                "contact_id"
+            ],
+            "fields": [
+                "list_id",
+                "contact_id",
+                "subscribed_at"
+            ]
+        },
+        "tags": {
+            "fields": [
+                "id",
+                "name",
+                "created_at"
+            ]
+        },
+        "contact_tags": {
+            "composite_primary_key": [
+                "contact_id",
+                "tag_id"
+            ]
+        },
+        "segments": {
+            "fields": [
+                "id",
+                "name",
+                "description",
+                "conditions_json",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "email_templates": {
+            "fields": [
+                "id",
+                "name",
+                "subject",
+                "html_content",
+                "text_content",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "campaigns": {
+            "fields": [
+                "id",
+                "name",
+                "subject",
+                "preview_text",
+                "from_name",
+                "from_email",
+                "reply_to",
+                "template_id",
+                "list_id",
+                "segment_id",
+                "provider",
+                "status",
+                "track_opens",
+                "track_clicks",
+                "scheduled_at",
+                "timezone",
+                "started_at",
+                "completed_at",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "campaign_recipients": {
+            "fields": [
+                "id",
+                "campaign_id",
+                "contact_id",
+                "email",
+                "status",
+                "provider",
+                "provider_message_id",
+                "sent_at",
+                "delivered_at",
+                "opened_at",
+                "clicked_at",
+                "failed_at",
+                "failure_reason"
+            ],
+            "unique_constraint": [
+                "campaign_id",
+                "contact_id"
+            ]
+        },
+        "email_events": {
+            "fields": [
+                "id",
+                "campaign_id",
+                "contact_id",
+                "event_type",
+                "url",
+                "user_agent",
+                "ip_address",
+                "created_at"
+            ]
+        },
+        "suppressions": {
+            "fields": [
+                "id",
+                "email",
+                "reason",
+                "source",
+                "created_at"
+            ],
+            "unique": [
+                "email"
+            ]
+        },
+        "provider_credentials": {
+            "fields": [
+                "id",
+                "provider",
+                "encrypted_credentials",
+                "is_active",
+                "created_at",
+                "updated_at"
+            ],
+            "security": [
+                "Encrypt credentials before persistence.",
+                "Never return encrypted credential values to frontend."
+            ]
+        },
+        "integrations": {
+            "fields": [
+                "id",
+                "provider",
+                "status",
+                "external_account_id",
+                "metadata_json",
+                "created_at",
+                "updated_at"
+            ]
+        },
+        "campaign_links": {
+            "fields": [
+                "id",
+                "campaign_id",
+                "original_url",
+                "tracking_token",
+                "created_at"
+            ],
+            "unique": [
+                "tracking_token"
+            ]
+        }
+    },
+    "database_relationships": [
+        "User 1:N RefreshToken",
+        "Contact N:M MailingList",
+        "Contact N:M Tag",
+        "Contact 1:N ContactCustomValue",
+        "CustomField 1:N ContactCustomValue",
+        "Campaign N:1 EmailTemplate",
+        "Campaign N:1 MailingList",
+        "Campaign N:1 Segment",
+        "Campaign 1:N CampaignRecipient",
+        "Contact 1:N CampaignRecipient",
+        "Campaign 1:N EmailEvent",
+        "Contact 1:N EmailEvent",
+        "Campaign 1:N CampaignLink"
+    ],
+    "api_architecture": {
+        "authentication": [
+            "POST /api/auth/login",
+            "POST /api/auth/refresh",
+            "POST /api/auth/logout",
+            "GET /api/auth/me"
+        ],
+        "contacts": [
+            "GET /api/contacts",
+            "POST /api/contacts",
+            "GET /api/contacts/{id}",
+            "PUT /api/contacts/{id}",
+            "DELETE /api/contacts/{id}",
+            "POST /api/contacts/import",
+            "GET /api/contacts/export",
+            "POST /api/contacts/bulk-subscribe",
+            "POST /api/contacts/bulk-unsubscribe",
+            "POST /api/contacts/bulk-delete"
+        ],
+        "lists": [
+            "GET /api/lists",
+            "POST /api/lists",
+            "GET /api/lists/{id}",
+            "PUT /api/lists/{id}",
+            "DELETE /api/lists/{id}",
+            "GET /api/lists/{id}/contacts",
+            "POST /api/lists/{id}/contacts",
+            "DELETE /api/lists/{id}/contacts/{contact_id}"
+        ],
+        "segments": [
+            "GET /api/segments",
+            "POST /api/segments",
+            "GET /api/segments/{id}",
+            "PUT /api/segments/{id}",
+            "DELETE /api/segments/{id}",
+            "POST /api/segments/{id}/preview"
+        ],
+        "tags": [
+            "GET /api/tags",
+            "POST /api/tags",
+            "PUT /api/tags/{id}",
+            "DELETE /api/tags/{id}"
+        ],
+        "templates": [
+            "GET /api/templates",
+            "POST /api/templates",
+            "GET /api/templates/{id}",
+            "PUT /api/templates/{id}",
+            "DELETE /api/templates/{id}",
+            "POST /api/templates/{id}/duplicate",
+            "POST /api/templates/{id}/test"
+        ],
+        "campaigns": [
+            "GET /api/campaigns",
+            "POST /api/campaigns",
+            "GET /api/campaigns/{id}",
+            "PUT /api/campaigns/{id}",
+            "DELETE /api/campaigns/{id}",
+            "POST /api/campaigns/{id}/test",
+            "POST /api/campaigns/{id}/send",
+            "POST /api/campaigns/{id}/schedule",
+            "POST /api/campaigns/{id}/pause",
+            "POST /api/campaigns/{id}/cancel",
+            "POST /api/campaigns/{id}/duplicate",
+            "GET /api/campaigns/{id}/progress",
+            "GET /api/campaigns/{id}/analytics"
+        ],
+        "analytics": [
+            "GET /api/analytics/overview",
+            "GET /api/analytics/campaigns",
+            "GET /api/analytics/engagement",
+            "GET /api/analytics/delivery"
+        ],
+        "provider": [
+            "GET /api/providers",
+            "GET /api/providers/status",
+            "POST /api/providers/zeptomail/test",
+            "POST /api/providers/smtp/test"
+        ],
+        "zoho": [
+            "GET /api/integrations/zoho/status",
+            "POST /api/integrations/zoho/connect",
+            "POST /api/integrations/zoho/sync",
+            "POST /api/integrations/zoho/disconnect"
+        ],
+        "suppressions": [
+            "GET /api/suppressions",
+            "POST /api/suppressions",
+            "DELETE /api/suppressions/{id}"
+        ],
+        "tracking": [
+            "GET /track/open/{token}",
+            "GET /track/click/{token}"
+        ],
+        "unsubscribe": [
+            "GET /unsubscribe/{token}",
+            "POST /unsubscribe/{token}"
+        ]
+    },
+    "campaign_lifecycle": {
+        "states": [
+            "draft",
+            "scheduled",
+            "queued",
+            "sending",
+            "paused",
+            "sent",
+            "cancelled",
+            "failed"
+        ],
+        "state_transitions": {
+            "draft": [
+                "scheduled",
+                "queued"
+            ],
+            "scheduled": [
+                "queued",
+                "cancelled"
+            ],
+            "queued": [
+                "sending",
+                "cancelled"
+            ],
+            "sending": [
+                "paused",
+                "sent",
+                "failed"
+            ],
+            "paused": [
+                "sending",
+                "cancelled"
+            ]
+        },
+        "rules": [
+            "Invalid state transitions must be rejected.",
+            "A sent campaign cannot be edited.",
+            "A cancelled campaign cannot resume.",
+            "A campaign cannot be sent twice.",
+            "A campaign must have a valid audience before sending.",
+            "A campaign must have valid content before sending.",
+            "A campaign must have a valid sender before sending."
+        ]
+    },
+    "campaign_send_flow": {
+        "steps": [
+            {
+                "step": 1,
+                "name": "Validate Campaign"
+            },
+            {
+                "step": 2,
+                "name": "Resolve Audience"
+            },
+            {
+                "step": 3,
+                "name": "Remove Unsubscribed Contacts"
+            },
+            {
+                "step": 4,
+                "name": "Remove Suppressed Contacts"
+            },
+            {
+                "step": 5,
+                "name": "Remove Invalid Recipients"
+            },
+            {
+                "step": 6,
+                "name": "Create CampaignRecipient Records"
+            },
+            {
+                "step": 7,
+                "name": "Set Campaign Status To Queued"
+            },
+            {
+                "step": 8,
+                "name": "Create Celery Jobs"
+            },
+            {
+                "step": 9,
+                "name": "Workers Process Recipients"
+            },
+            {
+                "step": 10,
+                "name": "EmailDeliveryService Sends Email"
+            },
+            {
+                "step": 11,
+                "name": "Provider Response Is Normalized"
+            },
+            {
+                "step": 12,
+                "name": "CampaignRecipient Is Updated"
+            },
+            {
+                "step": 13,
+                "name": "Analytics Are Updated"
+            },
+            {
+                "step": 14,
+                "name": "Campaign Becomes Sent"
+            }
+        ]
+    },
+    "background_processing": {
+        "celery_tasks": [
+            {
+                "name": "queue_campaign",
+                "responsibility": "Resolve audience and create delivery jobs."
+            },
+            {
+                "name": "send_campaign_batch",
+                "responsibility": "Process a batch of recipients."
+            },
+            {
+                "name": "send_single_email",
+                "responsibility": "Render and deliver an individual email."
+            },
+            {
+                "name": "process_scheduled_campaigns",
+                "responsibility": "Find campaigns whose scheduled time has arrived."
+            },
+            {
+                "name": "retry_failed_email",
+                "responsibility": "Retry transient delivery failures."
+            },
+            {
+                "name": "aggregate_campaign_analytics",
+                "responsibility": "Update campaign metrics."
+            },
+            {
+                "name": "sync_zoho_campaigns",
+                "responsibility": "Synchronize configured Zoho Campaigns data."
+            }
+        ],
+        "retry_policy": {
+            "max_retries": 3,
+            "strategy": "exponential_backoff",
+            "retry_only_transient_errors": true
+        }
+    },
+    "tracking_architecture": {
+        "open_tracking": {
+            "endpoint": "GET /track/open/{token}",
+            "behavior": [
+                "Resolve token",
+                "Find campaign and contact",
+                "Record open event",
+                "Update first opened timestamp",
+                "Return transparent tracking pixel"
+            ]
+        },
+        "click_tracking": {
+            "endpoint": "GET /track/click/{token}",
+            "behavior": [
+                "Resolve token",
+                "Record click event",
+                "Update first clicked timestamp",
+                "Redirect recipient to original URL"
+            ]
+        }
+    },
+    "unsubscribe_architecture": {
+        "token": "Signed or securely generated recipient-specific token",
+        "flow": [
+            "Recipient clicks unsubscribe",
+            "MailForge validates token",
+            "Contact is identified",
+            "Contact status becomes unsubscribed",
+            "Suppression record is created",
+            "Future campaign delivery excludes recipient",
+            "Confirmation page is displayed"
+        ]
+    },
+    "repositories": {
+        "interfaces": [
+            "UserRepository",
+            "ContactRepository",
+            "ListRepository",
+            "TagRepository",
+            "SegmentRepository",
+            "TemplateRepository",
+            "CampaignRepository",
+            "CampaignRecipientRepository",
+            "EmailEventRepository",
+            "SuppressionRepository",
+            "IntegrationRepository"
+        ],
+        "rules": [
+            "Repositories only handle persistence.",
+            "Repositories do not contain campaign business rules.",
+            "Repositories do not call external providers."
+        ]
+    },
+    "services": {
+        "AuthenticationService": [
+            "login",
+            "refresh",
+            "logout",
+            "get_current_user"
+        ],
+        "ContactService": [
+            "create",
+            "update",
+            "delete",
+            "get",
+            "list",
+            "bulk_update"
+        ],
+        "ContactImportService": [
+            "validate_csv",
+            "map_columns",
+            "preview",
+            "import"
+        ],
+        "AudienceResolver": [
+            "resolve_list",
+            "resolve_segment",
+            "apply_exclusions",
+            "apply_suppression",
+            "deduplicate"
+        ],
+        "TemplateRenderer": [
+            "render_html",
+            "render_text",
+            "replace_variables",
+            "inject_tracking",
+            "inject_unsubscribe"
+        ],
+        "CampaignService": [
+            "create",
+            "update",
+            "validate",
+            "send",
+            "schedule",
+            "pause",
+            "cancel",
+            "duplicate"
+        ],
+        "EmailDeliveryService": [
+            "select_provider",
+            "send",
+            "send_test",
+            "normalize_provider_response"
+        ],
+        "CampaignAnalyticsService": [
+            "calculate_delivery_rate",
+            "calculate_open_rate",
+            "calculate_click_rate",
+            "calculate_bounce_rate",
+            "calculate_unsubscribe_rate"
+        ]
+    },
+    "frontend": {
+        "technology": [
+            "React",
+            "TypeScript",
+            "Vite",
+            "Tailwind CSS",
+            "React Router",
+            "Zustand",
+            "React Hook Form",
+            "Zod",
+            "Recharts",
+            "Lucide React"
+        ],
+        "main_routes": [
+            "/login",
+            "/dashboard",
+            "/contacts",
+            "/contacts/:id",
+            "/contacts/import",
+            "/lists",
+            "/lists/:id",
+            "/segments",
+            "/templates",
+            "/templates/new",
+            "/templates/:id",
+            "/campaigns",
+            "/campaigns/new",
+            "/campaigns/:id",
+            "/campaigns/:id/analytics",
+            "/analytics",
+            "/suppressions",
+            "/integrations",
+            "/settings"
+        ],
+        "sidebar": [
+            "Dashboard",
+            "Contacts",
+            "Lists",
+            "Segments",
+            "Templates",
+            "Campaigns",
+            "Analytics",
+            "Suppressions",
+            "Integrations",
+            "Settings"
+        ]
+    },
+    "ui_design": {
+        "brand": "MailForge",
+        "visual_language": [
+            "premium SaaS",
+            "clean",
+            "technical",
+            "modern",
+            "data-driven",
+            "professional"
+        ],
+        "principles": [
+            "Information hierarchy over decoration.",
+            "Tables should be highly usable.",
+            "Campaign creation should feel like a guided workflow.",
+            "Analytics should be immediately understandable.",
+            "Use consistent status indicators.",
+            "Use responsive layouts.",
+            "Use clear empty states.",
+            "Use clear loading states.",
+            "Use confirmation dialogs for destructive actions."
+        ],
+        "primary_experience": [
+            "Dashboard",
+            "Contacts",
+            "Campaigns",
+            "Campaign Builder",
+            "Analytics"
+        ]
+    },
+    "security": {
+        "authentication": [
+            "JWT",
+            "Argon2 password hashing",
+            "Access token expiration",
+            "Refresh token protection"
+        ],
+        "authorization": [
+            "Role based access control",
+            "Protected routes",
+            "Endpoint permissions"
+        ],
+        "data_protection": [
+            "Encrypt provider secrets",
+            "Protect database credentials",
+            "Protect JWT secret",
+            "Protect API tokens",
+            "Never expose backend secrets to frontend"
+        ],
+        "api_security": [
+            "Input validation",
+            "Rate limiting",
+            "CORS",
+            "Secure HTTP headers",
+            "SQL injection prevention",
+            "XSS prevention"
+        ]
+    },
+    "performance": {
+        "database": [
+            "Use indexes.",
+            "Use pagination.",
+            "Avoid N+1 queries.",
+            "Use transactions for critical operations."
+        ],
+        "imports": [
+            "Process CSV files in chunks.",
+            "Do not load huge CSV files entirely into memory."
+        ],
+        "email": [
+            "Never send bulk email inside an HTTP request.",
+            "Use Celery workers.",
+            "Use Redis queue.",
+            "Process recipients in batches.",
+            "Retry transient failures."
+        ]
+    },
+    "logging": {
+        "configuration": "LOG_LEVEL",
+        "log_events": [
+            "authentication",
+            "API errors",
+            "campaign lifecycle",
+            "email delivery",
+            "provider errors",
+            "Celery jobs",
+            "Zoho synchronization",
+            "CSV imports"
+        ],
+        "never_log": [
+            "JWT_SECRET",
+            "ENCRYPTION_KEY",
+            "ZEPTOMAIL_SEND_MAIL_TOKEN",
+            "ZOHO_CLIENT_SECRET",
+            "ZOHO_REFRESH_TOKEN",
+            "SMTP_PASSWORD"
+        ]
+    },
+    "folder_structure": {
+        "backend": {
+            "root": "backend/",
+            "structure": [
+                "app/main.py",
+                "app/core/config.py",
+                "app/core/security.py",
+                "app/core/database.py",
+                "app/core/dependencies.py",
+                "app/api/",
+                "app/api/routes/",
+                "app/api/middleware/",
+                "app/domain/",
+                "app/domain/entities/",
+                "app/domain/interfaces/",
+                "app/application/",
+                "app/application/services/",
+                "app/application/use_cases/",
+                "app/infrastructure/",
+                "app/infrastructure/database/",
+                "app/infrastructure/repositories/",
+                "app/infrastructure/email/",
+                "app/infrastructure/email/providers/",
+                "app/infrastructure/zoho/",
+                "app/infrastructure/redis/",
+                "app/workers/",
+                "app/tasks/",
+                "app/schemas/",
+                "app/utils/",
+                "alembic/",
+                "tests/"
+            ]
+        },
+        "frontend": {
+            "root": "frontend/",
+            "structure": [
+                "src/main.tsx",
+                "src/App.tsx",
+                "src/routes/",
+                "src/layouts/",
+                "src/pages/",
+                "src/components/",
+                "src/components/ui/",
+                "src/features/",
+                "src/services/",
+                "src/stores/",
+                "src/hooks/",
+                "src/types/",
+                "src/utils/"
+            ]
+        }
+    },
+    "docker": {
+        "services": [
+            {
+                "name": "frontend",
+                "technology": "React + Vite"
+            },
+            {
+                "name": "backend",
+                "technology": "FastAPI + Python"
+            },
+            {
+                "name": "postgres",
+                "technology": "PostgreSQL"
+            },
+            {
+                "name": "redis",
+                "technology": "Redis"
+            },
+            {
+                "name": "celery_worker",
+                "technology": "Celery"
+            },
+            {
+                "name": "celery_beat",
+                "technology": "Celery Beat"
+            }
+        ]
+    },
+    "testing": {
+        "unit": [
+            "AuthenticationService",
+            "ContactService",
+            "AudienceResolver",
+            "TemplateRenderer",
+            "CampaignService",
+            "EmailDeliveryService",
+            "SuppressionService",
+            "AnalyticsService"
+        ],
+        "integration": [
+            "PostgreSQL",
+            "Redis",
+            "Celery",
+            "ZeptoMail mock",
+            "Zoho mock",
+            "SMTP mock"
+        ],
+        "critical_tests": [
+            "Unsubscribed contact is excluded.",
+            "Suppressed contact is excluded.",
+            "Duplicate recipient is prevented.",
+            "Invalid campaign cannot be sent.",
+            "Invalid sender cannot be used.",
+            "Campaign cannot be sent twice.",
+            "Scheduled campaign executes correctly.",
+            "Cancelled campaign stops processing.",
+            "Transient provider failure retries.",
+            "Permanent provider failure does not endlessly retry.",
+            "ZeptoMail mock works.",
+            "Zoho mock works.",
+            "SMTP configuration remains backend-only.",
+            "Zoho credentials remain backend-only.",
+            "Provider credentials remain encrypted."
+        ]
+    },
+    "implementation_order": [
+        {
+            "phase": 1,
+            "name": "Foundation",
+            "tasks": [
+                "Create FastAPI application",
+                "Create React application",
+                "Configure environment settings",
+                "Configure PostgreSQL",
+                "Configure Redis",
+                "Configure Docker"
+            ]
+        },
+        {
+            "phase": 2,
+            "name": "Database",
+            "tasks": [
+                "Create SQLAlchemy models",
+                "Create relationships",
+                "Create indexes",
+                "Create Alembic migrations"
+            ]
+        },
+        {
+            "phase": 3,
+            "name": "Authentication",
+            "tasks": [
+                "JWT",
+                "Password hashing",
+                "Login",
+                "Refresh",
+                "Logout",
+                "RBAC"
+            ]
+        },
+        {
+            "phase": 4,
+            "name": "Contacts And Audiences",
+            "tasks": [
+                "Contacts",
+                "CSV import",
+                "CSV export",
+                "Lists",
+                "Tags",
+                "Segments",
+                "Audience resolver"
+            ]
+        },
+        {
+            "phase": 5,
+            "name": "Templates",
+            "tasks": [
+                "Template CRUD",
+                "HTML editor",
+                "Personalization",
+                "Template rendering",
+                "Test email"
+            ]
+        },
+        {
+            "phase": 6,
+            "name": "Email Infrastructure",
+            "tasks": [
+                "EmailProvider interface",
+                "ZeptoMail adapter",
+                "SMTP adapter",
+                "Provider selection",
+                "Mock providers",
+                "Credential encryption"
+            ]
+        },
+        {
+            "phase": 7,
+            "name": "Campaign Engine",
+            "tasks": [
+                "Campaign CRUD",
+                "Campaign validation",
+                "Audience resolution",
+                "Campaign recipients",
+                "Campaign state machine"
+            ]
+        },
+        {
+            "phase": 8,
+            "name": "Background Processing",
+            "tasks": [
+                "Celery configuration",
+                "Redis integration",
+                "Campaign queue",
+                "Batch processing",
+                "Retries",
+                "Progress tracking"
+            ]
+        },
+        {
+            "phase": 9,
+            "name": "Scheduling",
+            "tasks": [
+                "Celery Beat",
+                "Scheduled campaigns",
+                "Timezone handling",
+                "Cancellation"
+            ]
+        },
+        {
+            "phase": 10,
+            "name": "Tracking",
+            "tasks": [
+                "Open tracking",
+                "Click tracking",
+                "Delivery events",
+                "Unsubscribe",
+                "Suppression"
+            ]
+        },
+        {
+            "phase": 11,
+            "name": "Zoho Integration",
+            "tasks": [
+                "OAuth integration",
+                "Zoho client",
+                "Zoho mock",
+                "Synchronization services",
+                "Integration status"
+            ]
+        },
+        {
+            "phase": 12,
+            "name": "Analytics",
+            "tasks": [
+                "Campaign analytics",
+                "Delivery metrics",
+                "Engagement metrics",
+                "Dashboard metrics"
+            ]
+        },
+        {
+            "phase": 13,
+            "name": "Frontend",
+            "tasks": [
+                "Dashboard",
+                "Contacts",
+                "Lists",
+                "Segments",
+                "Templates",
+                "Campaign Builder",
+                "Campaign Analytics",
+                "Global Analytics",
+                "Integrations",
+                "Settings"
+            ]
+        },
+        {
+            "phase": 14,
+            "name": "Testing And Deployment",
+            "tasks": [
+                "Unit tests",
+                "Integration tests",
+                "API tests",
+                "Frontend tests",
+                "Docker test",
+                "Production configuration"
+            ]
+        }
+    ],
+    "complete_mailforge_workflow": {
+        "contact_management": [
+            "Create/import contacts",
+            "Validate contacts",
+            "Assign lists",
+            "Assign tags",
+            "Create segments"
+        ],
+        "campaign_management": [
+            "Create campaign",
+            "Select audience",
+            "Select template",
+            "Configure sender",
+            "Configure tracking",
+            "Review campaign",
+            "Send test",
+            "Send immediately or schedule"
+        ],
+        "delivery": [
+            "Campaign enters queue",
+            "Celery worker receives batch",
+            "Audience is validated",
+            "Suppression rules are applied",
+            "Template is personalized",
+            "Tracking links are generated",
+            "Unsubscribe link is injected",
+            "ZeptoMail provider sends message",
+            "Response is normalized",
+            "Recipient status is updated"
+        ],
+        "analytics": [
+            "Delivery recorded",
+            "Open recorded",
+            "Click recorded",
+            "Bounce/failure recorded",
+            "Unsubscribe recorded",
+            "Campaign metrics calculated",
+            "Dashboard metrics updated"
+        ]
+    },
+    "acceptance_criteria": [
+        "MailForge uses the exact environment variable set defined in this specification.",
+        "The backend is implemented in Python FastAPI.",
+        "The frontend is implemented in React TypeScript Vite.",
+        "PostgreSQL is the primary database.",
+        "Redis is used for queueing and background coordination.",
+        "Celery handles asynchronous email processing.",
+        "Celery Beat handles scheduled campaigns.",
+        "ZeptoMail is the primary email provider.",
+        "SMTP is available as an additional provider.",
+        "ZeptoMail mock mode works using ZEPTOMAIL_MOCK.",
+        "Zoho Campaigns mock mode works using ZOHO_CAMPAIGNS_MOCK.",
+        "Zoho credentials are backend-only.",
+        "Provider credentials are encrypted.",
+        "Users can manage contacts.",
+        "Users can import contacts.",
+        "Users can manage mailing lists.",
+        "Users can create segments.",
+        "Users can manage tags.",
+        "Users can create email templates.",
+        "Users can create campaigns.",
+        "Users can preview campaigns.",
+        "Users can send test emails.",
+        "Users can send campaigns.",
+        "Users can schedule campaigns.",
+        "Campaign delivery is asynchronous.",
+        "Campaign progress is tracked.",
+        "Open tracking works.",
+        "Click tracking works.",
+        "Unsubscribe works.",
+        "Suppression works.",
+        "Analytics work.",
+        "Duplicate campaign delivery is prevented.",
+        "Unsubscribed recipients cannot receive future campaigns.",
+        "Suppressed recipients cannot receive campaigns.",
+        "The application follows Clean Architecture and SOLID principles.",
+        "No unrelated modules are introduced."
+    ],
+    "final_instruction": {
+        "build": "Build the complete MailForge application exactly according to this specification.",
+        "important": [
+            "This is MailForge, not a Zoho clone.",
+            "Zoho Campaigns is an integration, not the identity of the product.",
+            "ZeptoMail is the primary email delivery provider.",
+            "SMTP remains available as a provider option.",
+            "Use the exact environment variable names specified.",
+            "Use Python FastAPI for backend implementation.",
+            "Use PostgreSQL with SQLAlchemy.",
+            "Use Redis and Celery for background processing.",
+            "Implement actual persistence and APIs.",
+            "Implement provider adapters instead of coupling business logic to external APIs.",
+            "Implement mocks for ZeptoMail and Zoho so local development does not require external credentials.",
+            "Follow SOLID and Clean Architecture.",
+            "Keep external integrations isolated.",
+            "Do not add unrelated functionality."
+        ],
+        "definition_of_done": "MailForge is complete when a user can authenticate, manage contacts and audiences, create templates, configure email delivery, create and review campaigns, send or schedule campaigns, process recipients asynchronously through Celery and Redis, deliver through ZeptoMail or SMTP, integrate with Zoho Campaigns where configured, track delivery/open/click events, process unsubscribes and suppressions, and view campaign and system analytics through the MailForge interface."
+    }
+}

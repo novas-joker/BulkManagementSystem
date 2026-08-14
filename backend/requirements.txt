@@ -1,0 +1,18 @@
+# Core Framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# Database (pre-built wheel versions)
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.31.0
+alembic==1.14.0
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+cryptography==44.0.0
+
+# Settings Management
+pydantic
+pydantic-settings
