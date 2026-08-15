@@ -3,7 +3,7 @@ Dependency Injection for Routes
 Common dependencies like current user, database session
 """
 import logging
-from typing import Any, Annotated
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import decode_token
+from app.infrastructure.database.models import User
+from app.infrastructure.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +34,14 @@ async def get_current_user_id(
             detail="Missing authorization token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         payload = decode_token(credentials.credentials)
         user_id: str = payload.get("sub")
-        
+
         if not user_id:
             raise ValueError("Missing subject in token")
-        
+
         return user_id
     except (JWTError, ValueError):
         raise HTTPException(
@@ -53,14 +55,24 @@ async def get_current_user_id(
 
 async def get_current_user(
     user_id: str = Depends(get_current_user_id),
-) -> dict[str, Any]:
-    """Get current user from token."""
-    # Placeholder - in real implementation, fetch from database
-    return {"id": user_id, "active": True}
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Fetch the authenticated user from the database."""
+    repository = UserRepository(db)
+    user = await repository.get_by_id(user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or token is invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
 
 
 # ─── Type Aliases ────────────────────────────────────────────────────────────
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUserId = Annotated[str, Depends(get_current_user_id)]
-CurrentUser = Annotated[dict[str, Any], Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]

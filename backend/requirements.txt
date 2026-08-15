@@ -17,3 +17,7 @@ cryptography==44.0.0
 # Settings Management
 pydantic
 pydantic-settings
+email-validator
+
+# Testing
+pytest

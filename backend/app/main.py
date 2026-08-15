@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.auth import router as auth_router
+
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -61,6 +63,7 @@ def create_app() -> FastAPI:
             "service": "MailForge API"
         }
 
+    app.include_router(auth_router)
     return app
 
 
