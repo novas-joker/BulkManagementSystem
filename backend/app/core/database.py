@@ -36,7 +36,7 @@ Base = declarative_base()
 
 # ─── Session Dependency ────────────────────────────────────────────────────
 
-async def get_db() ->AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency for database session in routes."""
     async with AsyncSessionLocal() as session:
         try:
