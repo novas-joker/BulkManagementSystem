@@ -6,6 +6,7 @@ python-multipart==0.0.12
 # Database (pre-built wheel versions)
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.31.0
+psycopg[binary]==3.2.1
 alembic==1.14.0
 
 # Auth & Security
