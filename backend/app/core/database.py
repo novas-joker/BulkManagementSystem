@@ -2,6 +2,7 @@
 Database Configuration and Setup
 Async SQLAlchemy engine and session management
 """
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -35,7 +36,7 @@ Base = declarative_base()
 
 # ─── Session Dependency ────────────────────────────────────────────────────
 
-async def get_db() -> AsyncSession:
+async def get_db() ->AsyncGenerator[AsyncSession, None]:
     """Dependency for database session in routes."""
     async with AsyncSessionLocal() as session:
         try:
