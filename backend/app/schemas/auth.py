@@ -37,8 +37,15 @@ class TokenResponse(BaseModel):
     """JWT response returned from auth endpoints."""
 
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user: UserSummary
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema for refreshing an access token."""
+
+    refresh_token: str
 
 
 class UserProfileResponse(BaseModel):
@@ -48,4 +55,5 @@ class UserProfileResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: str
+    status: str
     status: str

@@ -11,6 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.contacts import router as contacts_router
 from app.api.routes.templates import router as templates_router
+from app.api.routes.lists import router as lists_router
+from app.api.routes.tags import router as tags_router
+from app.api.routes.segments import router as segments_router
+from app.api.routes.suppressions import router as suppressions_router
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
@@ -68,6 +72,10 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(contacts_router)
     app.include_router(templates_router)
+    app.include_router(lists_router)
+    app.include_router(tags_router)
+    app.include_router(segments_router)
+    app.include_router(suppressions_router)
     return app
 
 
