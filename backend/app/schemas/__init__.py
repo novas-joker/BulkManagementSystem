@@ -7,6 +7,7 @@ from .auth import (
     UserRegisterRequest,
     UserSummary,
 )
+from .contact import ContactCreateRequest, ContactResponse, ContactUpdateRequest
 
 __all__ = [
     "UserRegisterRequest",
@@ -14,4 +15,7 @@ __all__ = [
     "TokenResponse",
     "UserSummary",
     "UserProfileResponse",
+    "ContactCreateRequest",
+    "ContactUpdateRequest",
+    "ContactResponse",
 ]
