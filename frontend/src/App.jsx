@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 import {
@@ -8,6 +8,8 @@ import {
   loginUser,
   registerUser,
 } from './services/authApi'
+import { createContact, deleteContact, getContacts } from './services/contactApi'
+import { createTemplate, deleteTemplate, getTemplates } from './services/templateApi'
 
 function LandingPage({ onNavigate }) {
   return (
@@ -169,6 +171,117 @@ function AuthForm({ mode, onSubmit, loading, error, switchMode }) {
 
 function DashboardShell({ user, onLogout }) {
   const navItems = ['Overview', 'Contacts', 'Campaigns', 'Templates', 'Reports']
+  const [contacts, setContacts] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [contactForm, setContactForm] = useState({ email: '', first_name: '', last_name: '' })
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    subject: '',
+    html_content: '<p>Hello {{first_name}},</p>',
+    plain_text_content: 'Hello {{first_name}}',
+    preview_text: 'Welcome to MailForge',
+    template_type: 'standard',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadContacts = async () => {
+      try {
+        const data = await getContacts()
+        setContacts(data)
+      } catch {
+        setContacts([])
+      }
+    }
+
+    const loadTemplates = async () => {
+      try {
+        const data = await getTemplates()
+        setTemplates(data)
+      } catch {
+        setTemplates([])
+      }
+    }
+
+    loadContacts()
+    loadTemplates()
+  }, [])
+
+  const handleContactSubmit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const payload = {
+        email: contactForm.email,
+        first_name: contactForm.first_name,
+        last_name: contactForm.last_name,
+        status: 'subscribed',
+        source: 'manual',
+      }
+
+      const created = await createContact(payload)
+      setContacts((current) => [created, ...current])
+      setContactForm({ email: '', first_name: '', last_name: '' })
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Unable to add contact')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteContact = async (contactId) => {
+    try {
+      await deleteContact(contactId)
+      setContacts((current) => current.filter((item) => item.id !== contactId))
+    } catch {
+      setError('Unable to delete contact')
+    }
+  }
+
+  const handleTemplateSubmit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const payload = {
+        name: templateForm.name,
+        subject: templateForm.subject,
+        html_content: templateForm.html_content,
+        plain_text_content: templateForm.plain_text_content,
+        preview_text: templateForm.preview_text,
+        template_type: templateForm.template_type,
+        template_variables: ['first_name'],
+      }
+
+      const created = await createTemplate(payload)
+      setTemplates((current) => [created, ...current])
+      setTemplateForm({
+        name: '',
+        subject: '',
+        html_content: '<p>Hello {{first_name}},</p>',
+        plain_text_content: 'Hello {{first_name}}',
+        preview_text: 'Welcome to MailForge',
+        template_type: 'standard',
+      })
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Unable to create template')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteTemplate = async (templateId) => {
+    try {
+      await deleteTemplate(templateId)
+      setTemplates((current) => current.filter((item) => item.id !== templateId))
+    } catch {
+      setError('Unable to delete template')
+    }
+  }
 
   return (
     <div className="dashboard-shell">
@@ -209,7 +322,7 @@ function DashboardShell({ user, onLogout }) {
         <section className="stats-row">
           <div className="stat-card">
             <span>Total contacts</span>
-            <strong>12,480</strong>
+            <strong>{contacts.length}</strong>
           </div>
           <div className="stat-card">
             <span>Active campaigns</span>
@@ -238,13 +351,117 @@ function DashboardShell({ user, onLogout }) {
             </div>
           </div>
 
-          <div className="panel">
-            <h3>Recent activity</h3>
-            <ul className="activity-list">
-              <li>Welcome campaign sent to 1,200 users</li>
-              <li>New template published</li>
-              <li>Audience segment updated</li>
-            </ul>
+          <div className="panel contact-panel">
+            <h3>Add contact</h3>
+            <form className="contact-form" onSubmit={handleContactSubmit}>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={contactForm.email}
+                onChange={(event) => setContactForm((current) => ({ ...current, email: event.target.value }))}
+                required
+              />
+              <div className="split-fields">
+                <input
+                  type="text"
+                  placeholder="First name"
+                  value={contactForm.first_name}
+                  onChange={(event) => setContactForm((current) => ({ ...current, first_name: event.target.value }))}
+                />
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  value={contactForm.last_name}
+                  onChange={(event) => setContactForm((current) => ({ ...current, last_name: event.target.value }))}
+                />
+              </div>
+              {error && <p className="form-error">{error}</p>}
+              <button type="submit" className="primary-button" disabled={loading}>
+                {loading ? 'Adding...' : 'Add contact'}
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section className="panel contact-table-panel">
+          <h3>Contacts</h3>
+          <div className="contact-list">
+            {contacts.length === 0 ? (
+              <p className="empty-state">No contacts yet.</p>
+            ) : (
+              contacts.map((contact) => (
+                <div key={contact.id} className="contact-row">
+                  <div>
+                    <strong>{contact.first_name || contact.last_name ? `${contact.first_name} ${contact.last_name}`.trim() : 'Unnamed contact'}</strong>
+                    <small>{contact.email}</small>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => handleDeleteContact(contact.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="panel template-panel">
+          <h3>Templates</h3>
+          <form className="template-form" onSubmit={handleTemplateSubmit}>
+            <div className="split-fields">
+              <input
+                type="text"
+                placeholder="Template name"
+                value={templateForm.name}
+                onChange={(event) => setTemplateForm((current) => ({ ...current, name: event.target.value }))}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Email subject"
+                value={templateForm.subject}
+                onChange={(event) => setTemplateForm((current) => ({ ...current, subject: event.target.value }))}
+                required
+              />
+            </div>
+            <textarea
+              rows="3"
+              placeholder="HTML content"
+              value={templateForm.html_content}
+              onChange={(event) => setTemplateForm((current) => ({ ...current, html_content: event.target.value }))}
+            />
+            <textarea
+              rows="2"
+              placeholder="Plain text content"
+              value={templateForm.plain_text_content}
+              onChange={(event) => setTemplateForm((current) => ({ ...current, plain_text_content: event.target.value }))}
+            />
+            <input
+              type="text"
+              placeholder="Preview text"
+              value={templateForm.preview_text}
+              onChange={(event) => setTemplateForm((current) => ({ ...current, preview_text: event.target.value }))}
+            />
+            <button type="submit" className="primary-button" disabled={loading}>
+              {loading ? 'Saving...' : 'Create template'}
+            </button>
+          </form>
+
+          <div className="template-list">
+            {templates.length === 0 ? (
+              <p className="empty-state">No templates yet.</p>
+            ) : (
+              templates.map((template) => (
+                <div key={template.id} className="template-row">
+                  <div>
+                    <strong>{template.name}</strong>
+                    <small>{template.subject}</small>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => handleDeleteTemplate(template.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </main>

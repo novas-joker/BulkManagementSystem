@@ -8,6 +8,7 @@ from .auth import (
     UserSummary,
 )
 from .contact import ContactCreateRequest, ContactResponse, ContactUpdateRequest
+from .template import TemplateCreateRequest, TemplateResponse, TemplateUpdateRequest
 
 __all__ = [
     "UserRegisterRequest",
@@ -18,4 +19,7 @@ __all__ = [
     "ContactCreateRequest",
     "ContactUpdateRequest",
     "ContactResponse",
+    "TemplateCreateRequest",
+    "TemplateUpdateRequest",
+    "TemplateResponse",
 ]

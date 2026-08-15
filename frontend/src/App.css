@@ -4,6 +4,12 @@
   min-height: 100vh;
 }
 
+.contact-panel,
+.contact-table-panel,
+.template-panel {
+  margin-top: 1rem;
+}
+
 .topbar,
 .dashboard-header,
 .sidebar,
@@ -361,6 +367,73 @@
   background: white;
   border-radius: 1rem;
   padding: 1.25rem;
+}
+
+.contact-form,
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.contact-form input,
+.template-form input,
+.template-form textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  background: #fff;
+  font: inherit;
+}
+
+.template-form textarea {
+  resize: vertical;
+}
+
+.split-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.contact-list,
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.contact-row,
+.template-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.contact-row strong,
+.contact-row small,
+.template-row strong,
+.template-row small {
+  display: block;
+}
+
+.contact-row small,
+.template-row small {
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.empty-state {
+  margin: 1rem 0 0;
+  color: #64748b;
 }
 
 .chart-bars {
