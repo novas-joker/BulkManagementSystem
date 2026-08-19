@@ -57,6 +57,7 @@ class TemplateType(str, PyEnum):
 class CampaignStatus(str, PyEnum):
     DRAFT = "draft"
     SCHEDULED = "scheduled"
+    QUEUED = "queued"
     SENDING = "sending"
     SENT = "sent"
     PAUSED = "paused"

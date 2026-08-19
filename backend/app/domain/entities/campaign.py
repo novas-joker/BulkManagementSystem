@@ -12,6 +12,7 @@ class CampaignStatus(str, Enum):
     """Campaign lifecycle status."""
     DRAFT = "draft"
     SCHEDULED = "scheduled"
+    QUEUED = "queued"
     SENDING = "sending"
     SENT = "sent"
     PAUSED = "paused"

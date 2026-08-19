@@ -8,6 +8,7 @@ from app.application.services.template_service import TemplateService
 from app.application.services.template_renderer import TemplateRendererService
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.infrastructure.email.providers.factory import EmailProviderFactory
 from app.infrastructure.repositories.template_repository import TemplateRepository
 from app.schemas.template import TemplateCreateRequest, TemplateResponse, TemplateUpdateRequest
 
@@ -180,10 +181,7 @@ async def send_test_email(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """
-    Send a test email with the template to a recipient.
-    Note: This queues the email for sending via background task (not implemented yet).
-    """
+    """Send a real test email using the configured provider."""
     repository = TemplateRepository(db)
     service = TemplateService(repository)
 
@@ -191,10 +189,25 @@ async def send_test_email(
     if template is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
-    # TODO: Queue email sending via Celery/Redis
-    # For now, just return success
+    provider = EmailProviderFactory.get_provider("smtp")
+    result = provider.send(
+        to_email=str(payload.recipient_email),
+        subject=(payload.subject_override or template["subject"]).strip() or "Test email",
+        body=template.get("html_content") or template.get("text_content") or "",
+        from_email=provider.username if hasattr(provider, "username") else "noreply@example.com",
+        metadata={
+            "template_id": template_id,
+            "template_name": template.get("name"),
+            "user_id": current_user.id,
+        },
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.error or "Email delivery failed")
+
     return {
-        "status": "queued",
-        "message": f"Test email queued to {payload.recipient_email}",
+        "status": result.status,
+        "message": f"Test email sent to {payload.recipient_email}",
         "template_id": template_id,
+        "provider": result.provider,
     }

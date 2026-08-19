@@ -19,6 +19,7 @@ export default function TemplatesPage() {
   const [previewData, setPreviewData] = useState(null)
   const [testEmailModal, setTestEmailModal] = useState({ visible: false, templateId: null })
   const [testForm, setTestForm] = useState({ recipient_email: '' })
+  const [expandedId, setExpandedId] = useState(null)
   const [form, setForm] = useState({
     name: '',
     subject: '',
@@ -27,6 +28,27 @@ export default function TemplatesPage() {
     preview_text: '',
     template_type: 'standard',
   })
+  
+  const TEMPLATE_VARIABLES = [
+    { name: 'first_name', example: 'John' },
+    { name: 'last_name', example: 'Doe' },
+    { name: 'email', example: 'john@example.com' },
+  ]
+  
+  const insertVariable = (varName) => {
+    const textarea = document.querySelector('textarea[name="html_content"]')
+    if (textarea) {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const before = form.html_content.substring(0, start)
+      const after = form.html_content.substring(end)
+      const varPlaceholder = `{{${varName}}}`
+      setForm((current) => ({
+        ...current,
+        html_content: before + varPlaceholder + after,
+      }))
+    }
+  }
 
   useEffect(() => {
     loadTemplates()
@@ -234,17 +256,57 @@ export default function TemplatesPage() {
               />
             </label>
 
-            <label>
-              <span>HTML Content</span>
-              <textarea
-                name="html_content"
-                value={form.html_content}
-                onChange={handleChange}
-                placeholder="<p>Hello {{first_name}},</p><p>Welcome!</p>"
-                rows="8"
-                required
-              />
-            </label>
+            <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '10px' }}>
+                <strong>Quick Insert Variables</strong>
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {TEMPLATE_VARIABLES.map((variable) => (
+                  <button
+                    key={variable.name}
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => insertVariable(variable.name)}
+                    style={{ padding: '0.5rem 0.8rem', fontSize: '0.85rem' }}
+                  >
+                    +{'{{'} {variable.name} {'}}'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <label>
+                  <span>HTML Content</span>
+                  <textarea
+                    name="html_content"
+                    value={form.html_content}
+                    onChange={handleChange}
+                    placeholder="<p>Hello {{first_name}},</p><p>Welcome!</p>"
+                    rows="12"
+                    required
+                  />
+                </label>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span>Live Preview</span>
+                </label>
+                <div
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '0.5rem',
+                    padding: '1rem',
+                    backgroundColor: '#f8fafc',
+                    minHeight: '300px',
+                    overflow: 'auto',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: form.html_content || '<p>Preview will appear here...</p>' }}
+                />
+              </div>
+            </div>
 
             <label>
               <span>Plain Text Content</span>
@@ -270,7 +332,7 @@ export default function TemplatesPage() {
 
             <div className="info-box">
               <p>
-                <strong>Available variables:</strong> {'{{first_name}}'}, {'{{email}}'}, {'{{last_name}}'}
+                <strong>Available variables:</strong> {TEMPLATE_VARIABLES.map((v) => `{{${v.name}}} (e.g., ${v.example})`).join(', ')}
               </p>
             </div>
 

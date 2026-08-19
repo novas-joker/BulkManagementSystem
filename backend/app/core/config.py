@@ -2,17 +2,23 @@
 Application Configuration using Pydantic Settings
 Manages all environment variables for MailForge
 """
+from pathlib import Path
 from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ROOT_DIR / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
     
     # ─── Application ──────────────────────────────────────────────────────────
@@ -29,13 +35,13 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # ─── JWT Configuration ───────────────────────────────────────────────────
-    JWT_SECRET: str = "your-secret-key-change-in-production"
+    JWT_SECRET: str = "local-dev-jwt-secret-change-later"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ACCESS_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     # ─── Security & Encryption ───────────────────────────────────────────────
-    ENCRYPTION_KEY: str = ""  # 32-byte base64 Fernet key
+    ENCRYPTION_KEY: str = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
     
     # ─── ZeptoMail Configuration ─────────────────────────────────────────────
     ZEPTOMAIL_API_URL: str = "https://api.zeptomail.com/v1.1/email"

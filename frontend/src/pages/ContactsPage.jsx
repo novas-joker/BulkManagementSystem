@@ -323,7 +323,25 @@ export default function ContactsPage() {
 
       {showImport && (
         <div className="form-card">
-          <h3>Import Contacts from CSV</h3>
+          <div className="csv-import-header">
+            <h2>Import Contacts via CSV</h2>
+            <div className="csv-step-indicators">
+              <div className={`csv-step ${csvForm.step === 'upload' ? 'active' : csvForm.validationResult ? 'completed' : ''}`}>
+                <span className="step-number">1</span>
+                <span className="step-label">Upload</span>
+              </div>
+              <div className="csv-step-line" />
+              <div className={`csv-step ${csvForm.step === 'mapping' ? 'active' : csvForm.previewResult ? 'completed' : ''}`}>
+                <span className="step-number">2</span>
+                <span className="step-label">Map & Configure</span>
+              </div>
+              <div className="csv-step-line" />
+              <div className={`csv-step ${csvForm.step === 'preview' ? 'active' : ''}`}>
+                <span className="step-number">3</span>
+                <span className="step-label">Review & Import</span>
+              </div>
+            </div>
+          </div>
 
           {csvForm.step === 'upload' && (
             <>
@@ -359,27 +377,56 @@ export default function ContactsPage() {
 
           {csvForm.validationResult && csvForm.step === 'mapping' && (
             <>
-              <p>
-                <strong>Detected columns:</strong> {csvForm.validationResult.columns.join(', ')}
-              </p>
+              <div className="csv-section">
+                <h3>Detected Columns</h3>
+                <div className="columns-detected">
+                  {csvForm.validationResult.columns.map((col) => (
+                    <span key={col} className="column-tag">{col}</span>
+                  ))}
+                </div>
+              </div>
+
               {csvForm.validationResult.preview && (
-                <div>
-                  <p>Preview (first 5 rows):</p>
-                  <pre>{JSON.stringify(csvForm.validationResult.preview, null, 2)}</pre>
+                <div className="csv-section">
+                  <h3>Preview (First 5 Rows)</h3>
+                  <div className="preview-table-container">
+                    <table className="preview-table">
+                      <thead>
+                        <tr>
+                          {csvForm.validationResult.columns.map((col) => (
+                            <th key={col}>{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvForm.validationResult.preview.map((row, idx) => (
+                          <tr key={idx}>
+                            {csvForm.validationResult.columns.map((col) => (
+                              <td key={`${idx}-${col}`}>{row[col] || '-'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
-              <label>
-                <span>Deduplication Strategy</span>
-                <select
-                  name="dedupStrategy"
-                  value={csvForm.dedupStrategy}
-                  onChange={handleCsvChange}
-                >
-                  <option value="skip">Skip duplicates</option>
-                  <option value="merge">Merge with existing</option>
-                  <option value="overwrite">Overwrite existing</option>
-                </select>
-              </label>
+
+              <div className="csv-section">
+                <label>
+                  <span>Deduplication Strategy</span>
+                  <select
+                    name="dedupStrategy"
+                    value={csvForm.dedupStrategy}
+                    onChange={handleCsvChange}
+                  >
+                    <option value="skip">Skip duplicate emails</option>
+                    <option value="merge">Merge with existing records</option>
+                    <option value="overwrite">Overwrite existing records</option>
+                  </select>
+                </label>
+              </div>
+
               <div className="form-actions">
                 <button
                   type="button"
@@ -387,7 +434,7 @@ export default function ContactsPage() {
                   onClick={handlePreviewImport}
                   disabled={loading}
                 >
-                  {loading ? 'Previewing...' : 'Preview Import'}
+                  {loading ? 'Previewing...' : 'Continue to Review'}
                 </button>
                 <button
                   type="button"
@@ -412,29 +459,42 @@ export default function ContactsPage() {
 
           {csvForm.previewResult && csvForm.step === 'preview' && (
             <>
-              <p>
-                <strong>Preview of contacts to import:</strong>
-              </p>
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>First Name</th>
-                      <th>Last Name</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csvForm.previewResult.slice(0, 10).map((row, idx) => (
-                      <tr key={idx}>
-                        <td>{row.email}</td>
-                        <td>{row.first_name || '-'}</td>
-                        <td>{row.last_name || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="csv-section">
+                <h3>Ready to import {csvForm.previewResult.length} contacts</h3>
+                <p>Strategy: <strong>{csvForm.dedupStrategy === 'skip' ? 'Skip duplicates' : csvForm.dedupStrategy === 'merge' ? 'Merge with existing' : 'Overwrite existing'}</strong></p>
               </div>
+
+              <div className="csv-section">
+                <h3>Import Preview</h3>
+                <div className="preview-table-container">
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvForm.previewResult.slice(0, 10).map((row, idx) => (
+                        <tr key={idx}>
+                          <td>{row.email || '-'}</td>
+                          <td>{row.first_name || '-'}</td>
+                          <td>{row.last_name || '-'}</td>
+                          <td><span className="status-badge">{row.status || 'subscribed'}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {csvForm.previewResult.length > 10 && (
+                  <p style={{ marginTop: '10px', fontSize: '0.9em', color: '#666' }}>
+                    Showing first 10 of {csvForm.previewResult.length} contacts
+                  </p>
+                )}
+              </div>
+
               <div className="form-actions">
                 <button
                   type="button"

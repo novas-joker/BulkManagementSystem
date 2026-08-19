@@ -29,7 +29,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
     async def get_by_token(self, token: str) -> RefreshToken | None:
         """Retrieve a refresh token by its token value."""
         stmt = select(RefreshToken).where(RefreshToken.token == token)
-        result = await self.db.execute(stmt)
+        result = await self.session.execute(stmt)
         return result.scalars().first()
 
     async def is_valid(self, token: str) -> bool:
@@ -53,15 +53,15 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             .where(and_(RefreshToken.id == token_id, RefreshToken.user_id == user_id))
             .values(revoked=True)
         )
-        result = await self.db.execute(stmt)
-        await self.db.commit()
+        result = await self.session.execute(stmt)
+        await self.session.commit()
         return result.rowcount > 0
 
     async def revoke_all_for_user(self, user_id: str) -> bool:
         """Revoke all refresh tokens for a user (logout all sessions)."""
         stmt = update(RefreshToken).where(RefreshToken.user_id == user_id).values(revoked=True)
-        result = await self.db.execute(stmt)
-        await self.db.commit()
+        result = await self.session.execute(stmt)
+        await self.session.commit()
         return result.rowcount > 0
 
     async def list_for_user(self, user_id: str) -> list[dict]:
@@ -71,7 +71,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             .where(and_(RefreshToken.user_id == user_id, RefreshToken.revoked == False))
             .order_by(RefreshToken.created_at.desc())
         )
-        result = await self.db.execute(stmt)
+        result = await self.session.execute(stmt)
         tokens = result.scalars().all()
         return [self._serialize(token) for token in tokens]
 

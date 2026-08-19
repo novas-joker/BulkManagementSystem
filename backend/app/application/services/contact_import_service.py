@@ -71,11 +71,13 @@ class ContactImportService(BaseService[ContactRepository]):
 
         preview_data = []
         errors = []
+        total_rows = 0
 
         try:
             reader = csv.DictReader(io.StringIO(csv_content))
 
             for i, row in enumerate(reader):
+                total_rows = i + 1
                 if i >= 10:  # Preview max 10 rows
                     break
 
@@ -93,7 +95,7 @@ class ContactImportService(BaseService[ContactRepository]):
                 preview_data.append(contact_data)
 
             return {
-                "total_rows": i + 1,
+                "total_rows": total_rows,
                 "preview_rows": len(preview_data),
                 "preview": preview_data[:5],
                 "errors": errors,
@@ -155,16 +157,20 @@ class ContactImportService(BaseService[ContactRepository]):
                             skipped += 1
                             continue
                         elif dedup_strategy == "merge":
-                            # Update only provided fields
-                            updated = await self.repository.update(existing.id, contact_data)
+                            for field_name, field_value in contact_data.items():
+                                if field_name == "user_id":
+                                    continue
+                                setattr(existing, field_name, field_value)
+                            updated = await self.repository.update(existing)
                             created_ids.append(updated.id)
                             imported += 1
                         elif dedup_strategy == "overwrite":
-                            # Update all fields
-                            await self.repository.delete(existing.id)
-                            new_contact = Contact(**contact_data)
-                            created = await self.repository.create(new_contact)
-                            created_ids.append(created.id)
+                            for field_name, field_value in contact_data.items():
+                                if field_name == "user_id":
+                                    continue
+                                setattr(existing, field_name, field_value)
+                            updated = await self.repository.update(existing)
+                            created_ids.append(updated.id)
                             imported += 1
                     else:
                         # Create new contact
@@ -207,7 +213,8 @@ class ContactImportService(BaseService[ContactRepository]):
             try:
                 contact = await self.repository.get(contact_id)
                 if contact and contact.user_id == user_id:
-                    await self.repository.update(contact_id, {"status": new_status})
+                    contact.status = new_status
+                    await self.repository.update(contact)
                     updated += 1
                 else:
                     failed.append(contact_id)

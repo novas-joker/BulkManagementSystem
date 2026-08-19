@@ -8,6 +8,7 @@ from .auth import (
     UserSummary,
     RefreshTokenRequest,
 )
+from .campaign import CampaignCreateRequest, CampaignResponse, CampaignUpdateRequest
 from .contact import ContactCreateRequest, ContactResponse, ContactUpdateRequest
 from .template import TemplateCreateRequest, TemplateResponse, TemplateUpdateRequest
 from .list import MailingListCreateRequest, MailingListResponse, MailingListUpdateRequest, ListContactResponse
@@ -22,6 +23,9 @@ __all__ = [
     "UserSummary",
     "UserProfileResponse",
     "RefreshTokenRequest",
+    "CampaignCreateRequest",
+    "CampaignUpdateRequest",
+    "CampaignResponse",
     "ContactCreateRequest",
     "ContactUpdateRequest",
     "ContactResponse",

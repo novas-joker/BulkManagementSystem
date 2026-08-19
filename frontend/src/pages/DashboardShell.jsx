@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import CampaignsPage from './CampaignsPage'
 import ContactsPage from './ContactsPage'
 import TemplatesPage from './TemplatesPage'
 import ListsPage from './ListsPage'
 import TagsPage from './TagsPage'
 import SegmentsPage from './SegmentsPage'
 import SuppressionPage from './SuppressionPage'
+import { getCampaigns } from '../services/campaignApi'
+import { getContacts } from '../services/contactApi'
+import { getMailingLists } from '../services/listApi'
 
 const PAGE_COMPONENTS = {
   overview: null,
+  campaigns: CampaignsPage,
   contacts: ContactsPage,
   templates: TemplatesPage,
   lists: ListsPage,
@@ -18,6 +23,7 @@ const PAGE_COMPONENTS = {
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'campaigns', label: 'Campaigns' },
   { id: 'contacts', label: 'Contacts' },
   { id: 'templates', label: 'Templates' },
   { id: 'lists', label: 'Mailing Lists' },
@@ -28,6 +34,41 @@ const NAV_ITEMS = [
 
 export default function DashboardShell({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState('overview')
+  const [stats, setStats] = useState({
+    totalContacts: 0,
+    activeCampaigns: 0,
+    totalTemplates: 0,
+    mailingLists: 0,
+  })
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    try {
+      setLoading(true)
+      const [campaigns, contacts, lists] = await Promise.all([
+        getCampaigns(),
+        getContacts(),
+        getMailingLists(),
+      ])
+
+      setStats({
+        totalContacts: Array.isArray(contacts) ? contacts.length : 0,
+        activeCampaigns: Array.isArray(campaigns)
+          ? campaigns.filter((c) => c.status === 'sending' || c.status === 'queued').length
+          : 0,
+        totalTemplates: Array.isArray(campaigns) ? campaigns.length : 0,
+        mailingLists: Array.isArray(lists) ? lists.length : 0,
+      })
+    } catch {
+      console.error('Failed to load stats')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const PageComponent = PAGE_COMPONENTS[currentPage]
 
@@ -46,25 +87,25 @@ export default function DashboardShell({ user, onLogout }) {
       <section className="stats-row">
         <div className="stat-card">
           <span>Total contacts</span>
-          <strong>Coming soon</strong>
+          <strong>{stats.totalContacts}</strong>
         </div>
         <div className="stat-card">
           <span>Active campaigns</span>
-          <strong>—</strong>
+          <strong>{stats.activeCampaigns}</strong>
         </div>
         <div className="stat-card">
-          <span>Open rate</span>
-          <strong>—</strong>
+          <span>Mailing lists</span>
+          <strong>{stats.mailingLists}</strong>
         </div>
         <div className="stat-card">
-          <span>Revenue</span>
-          <strong>—</strong>
+          <span>Email templates</span>
+          <strong>{stats.totalTemplates}</strong>
         </div>
       </section>
 
       <section className="content-grid">
         <div className="panel">
-          <h3>Campaign performance</h3>
+          <h3>Campaign activity</h3>
           <div className="chart-bars">
             <span style={{ height: '35%' }} />
             <span style={{ height: '52%' }} />
@@ -100,18 +141,18 @@ export default function DashboardShell({ user, onLogout }) {
               <button
                 type="button"
                 className="text-button"
-                onClick={() => setCurrentPage('lists')}
+                onClick={() => setCurrentPage('campaigns')}
               >
-                → Set up mailing lists
+                → Launch your first campaign
               </button>
             </li>
-            <li>
+            <li style={{ paddingBottom: '10px' }}>
               <button
                 type="button"
                 className="text-button"
-                onClick={() => setCurrentPage('segments')}
+                onClick={() => setCurrentPage('lists')}
               >
-                → Create your first segment
+                → Organize contacts into lists
               </button>
             </li>
           </ul>
