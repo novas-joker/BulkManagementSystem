@@ -9,6 +9,7 @@ import SuppressionPage from './SuppressionPage'
 import { getCampaigns } from '../services/campaignApi'
 import { getContacts } from '../services/contactApi'
 import { getMailingLists } from '../services/listApi'
+import { getTemplates } from '../services/templateApi'
 
 const PAGE_COMPONENTS = {
   overview: null,
@@ -49,10 +50,11 @@ export default function DashboardShell({ user, onLogout }) {
   const loadStats = async () => {
     try {
       setLoading(true)
-      const [campaigns, contacts, lists] = await Promise.all([
+      const [campaigns, contacts, lists, templates] = await Promise.all([
         getCampaigns(),
         getContacts(),
         getMailingLists(),
+        getTemplates(),
       ])
 
       setStats({
@@ -60,7 +62,7 @@ export default function DashboardShell({ user, onLogout }) {
         activeCampaigns: Array.isArray(campaigns)
           ? campaigns.filter((c) => c.status === 'sending' || c.status === 'queued').length
           : 0,
-        totalTemplates: Array.isArray(campaigns) ? campaigns.length : 0,
+        totalTemplates: Array.isArray(templates) ? templates.length : 0,
         mailingLists: Array.isArray(lists) ? lists.length : 0,
       })
     } catch {

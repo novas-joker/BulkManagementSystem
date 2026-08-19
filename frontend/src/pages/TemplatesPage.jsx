@@ -350,10 +350,10 @@ export default function TemplatesPage() {
 
       {previewingId && previewData && (
         <div className="form-card">
-          <h3>Template Preview: {previewData.template_name}</h3>
+          <h3>Template Preview</h3>
           <div className="preview-container">
-            <h4>Subject: {previewData.rendered_subject}</h4>
-            <div className="preview-html" dangerouslySetInnerHTML={{ __html: previewData.rendered_html }} />
+            <h4>Subject: {previewData.subject || '-'}</h4>
+            <div className="preview-html" dangerouslySetInnerHTML={{ __html: previewData.html_preview || '' }} />
           </div>
           <button
             type="button"

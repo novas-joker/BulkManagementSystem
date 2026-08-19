@@ -152,3 +152,20 @@ async def send_campaign_test_email(
         }
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/{campaign_id}/send", status_code=status.HTTP_200_OK)
+async def send_campaign(
+    campaign_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Send a campaign to its resolved audience."""
+    campaign_repo = CampaignRepository(db)
+    template_repo = TemplateRepository(db)
+    service = CampaignService(campaign_repo, template_repo)
+
+    try:
+        return await service.send_campaign(current_user.id, campaign_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

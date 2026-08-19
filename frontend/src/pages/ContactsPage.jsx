@@ -128,10 +128,31 @@ export default function ContactsPage() {
     try {
       setLoading(true)
       const result = await validateCSV(csvForm.csvContent)
+      const fieldAliases = {
+        email: 'email',
+        email_address: 'email',
+        first_name: 'first_name',
+        firstname: 'first_name',
+        last_name: 'last_name',
+        lastname: 'last_name',
+        status: 'status',
+      }
+      const columnMapping = Object.fromEntries(
+        (Array.isArray(result.columns) ? result.columns : [])
+          .map((column) => [column, fieldAliases[column.trim().toLowerCase().replace(/\s+/g, '_')]])
+          .filter(([, field]) => field)
+      )
+
       setCsvForm((current) => ({
         ...current,
-        validationResult: result,
-        step: result.valid ? 'mapping' : 'upload',
+        validationResult: {
+          ...result,
+          columns: Array.isArray(result?.columns) ? result.columns : [],
+          preview: Array.isArray(result?.preview) ? result.preview : [],
+          errors: Array.isArray(result?.errors) ? result.errors : [],
+        },
+        columnMapping,
+        step: result?.valid ? 'mapping' : 'upload',
       }))
     } catch (err) {
       setError(err?.response?.data?.detail || 'Failed to validate CSV')
@@ -144,9 +165,11 @@ export default function ContactsPage() {
     try {
       setLoading(true)
       const result = await previewCSVImport(csvForm.csvContent, csvForm.columnMapping)
+      const previewRows = Array.isArray(result) ? result : result?.preview
+
       setCsvForm((current) => ({
         ...current,
-        previewResult: result,
+        previewResult: Array.isArray(previewRows) ? previewRows : [],
         step: 'preview',
       }))
     } catch (err) {
