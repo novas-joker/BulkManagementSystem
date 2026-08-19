@@ -23,6 +23,10 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(obj)
         return obj
 
+    async def get(self, entity_id: str) -> ModelType | None:
+        """Compatibility wrapper for code that expects a generic get() method."""
+        return await self.get_by_id(entity_id)
+
     async def get_by_id(self, entity_id: str) -> ModelType | None:
         """Fetch one record by primary key."""
         stmt = select(self.model).where(self.model.id == entity_id)

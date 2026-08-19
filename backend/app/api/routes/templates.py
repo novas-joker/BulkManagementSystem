@@ -1,15 +1,39 @@
 """Template routes for managing email templates."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.template_service import TemplateService
+from app.application.services.template_renderer import TemplateRendererService
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.infrastructure.email.providers.factory import EmailProviderFactory
 from app.infrastructure.repositories.template_repository import TemplateRepository
 from app.schemas.template import TemplateCreateRequest, TemplateResponse, TemplateUpdateRequest
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
+
+
+class TemplateDuplicateRequest(BaseModel):
+    """Request to duplicate a template."""
+
+    new_name: str
+
+
+class TestEmailRequest(BaseModel):
+    """Request to send a test email."""
+
+    recipient_email: EmailStr
+    subject_override: str | None = None
+
+
+class TemplatePreviewResponse(BaseModel):
+    """Preview of template rendering."""
+
+    subject: str
+    html_preview: str
+    text_preview: str
 
 
 @router.get("", response_model=list[TemplateResponse])
@@ -91,3 +115,99 @@ async def delete_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     return None
+
+
+@router.post("/{template_id}/duplicate", response_model=TemplateResponse)
+async def duplicate_template(
+    template_id: str,
+    payload: TemplateDuplicateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Duplicate an existing template with a new name."""
+    repository = TemplateRepository(db)
+    service = TemplateService(repository)
+
+    # Get original template
+    original = await service.get_template(current_user.id, template_id)
+    if original is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    try:
+        # Create a copy
+        copy_data = {
+            "name": payload.new_name,
+            "subject": original["subject"],
+            "html_content": original["html_content"],
+            "text_content": original.get("text_content", ""),
+        }
+        duplicate = await service.create_template(current_user.id, copy_data)
+        return TemplateResponse(**duplicate)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/{template_id}/preview", response_model=TemplatePreviewResponse)
+async def preview_template(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Preview template with sample data rendering."""
+    repository = TemplateRepository(db)
+    service = TemplateService(repository)
+
+    template = await service.get_template(current_user.id, template_id)
+    if template is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    # Generate preview with placeholder variables
+    preview = TemplateRendererService.preview_render(
+        template.get("html_content", ""),
+        template.get("text_content", ""),
+    )
+
+    return TemplatePreviewResponse(
+        subject=template["subject"],
+        html_preview=preview["html"],
+        text_preview=preview["text"],
+    )
+
+
+@router.post("/{template_id}/test-email", status_code=status.HTTP_202_ACCEPTED)
+async def send_test_email(
+    template_id: str,
+    payload: TestEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Send a real test email using the configured provider."""
+    repository = TemplateRepository(db)
+    service = TemplateService(repository)
+
+    template = await service.get_template(current_user.id, template_id)
+    if template is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    provider = EmailProviderFactory.get_provider("smtp")
+    result = provider.send(
+        to_email=str(payload.recipient_email),
+        subject=(payload.subject_override or template["subject"]).strip() or "Test email",
+        body=template.get("html_content") or template.get("text_content") or "",
+        from_email=provider.username if hasattr(provider, "username") else "noreply@example.com",
+        metadata={
+            "template_id": template_id,
+            "template_name": template.get("name"),
+            "user_id": current_user.id,
+        },
+    )
+
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.error or "Email delivery failed")
+
+    return {
+        "status": result.status,
+        "message": f"Test email sent to {payload.recipient_email}",
+        "template_id": template_id,
+        "provider": result.provider,
+    }

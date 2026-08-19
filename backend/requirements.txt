@@ -6,7 +6,7 @@ python-multipart==0.0.12
 # Database (pre-built wheel versions)
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.31.0
-psycopg[binary]==3.2.1
+psycopg[binary]==3.3.4
 alembic==1.14.0
 
 # Auth & Security
@@ -19,5 +19,11 @@ pydantic
 pydantic-settings
 email-validator
 
+# Async Task Queue & Caching
+celery==5.3.6
+redis==5.0.7
+redis[asyncio]==5.0.7
+
 # Testing
 pytest
+pytest-asyncio

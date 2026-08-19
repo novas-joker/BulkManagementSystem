@@ -7,7 +7,7 @@ from app.application.services import AuthService
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.infrastructure.repositories import UserRepository
-from app.schemas import TokenResponse, UserLoginRequest, UserProfileResponse, UserRegisterRequest
+from app.schemas import TokenResponse, UserLoginRequest, UserProfileResponse, UserRegisterRequest, RefreshTokenRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -46,6 +46,36 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
         ) from exc
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_access_token(
+    payload: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh an access token using a refresh token."""
+    user_repository = UserRepository(db)
+    service = AuthService(user_repository)
+    try:
+        result = await service.refresh_access_token(payload.refresh_token, db)
+        return TokenResponse(**result)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_user(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Logout a user by revoking their refresh tokens."""
+    user_repository = UserRepository(db)
+    service = AuthService(user_repository)
+    await service.logout(current_user.id, db)
+    return None
 
 
 @router.get("/me", response_model=UserProfileResponse)
