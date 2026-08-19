@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getCampaigns, createCampaign, deleteCampaign, sendCampaignTestEmail, updateCampaign } from '../services/campaignApi'
+import { getCampaigns, createCampaign, deleteCampaign, sendCampaign, sendCampaignTestEmail, updateCampaign } from '../services/campaignApi'
 import { getTemplates } from '../services/templateApi'
 import { getMailingLists } from '../services/listApi'
 import { getSegments } from '../services/segmentApi'
@@ -159,8 +159,7 @@ export default function CampaignsPage() {
         template_id: form.template_id || null,
         campaign_type: form.campaign_type,
         audience_criteria: form.audience_criteria || { list_ids: [], segment_ids: [] },
-        scheduled: form.scheduled,
-        send_time: form.scheduled && form.send_time ? form.send_time : null,
+        scheduled_at: form.scheduled && form.send_time ? form.send_time : null,
       }
 
       if (editingId) {
@@ -187,33 +186,37 @@ export default function CampaignsPage() {
         return (
           <div className="builder-step">
             <h3>Step 1: Campaign Details</h3>
-            <label>
+            <label htmlFor="campaign-name">
               <span>Campaign Name *</span>
               <input
+                id="campaign-name"
                 type="text"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 placeholder="e.g., Summer Promotion 2024"
+                autoComplete="off"
                 required
               />
             </label>
 
-            <label>
+            <label htmlFor="campaign-subject">
               <span>Subject Line *</span>
               <input
+                id="campaign-subject"
                 type="text"
                 name="subject"
                 value={form.subject}
                 onChange={handleChange}
                 placeholder="e.g., Don't miss our summer sale!"
+                autoComplete="off"
                 required
               />
             </label>
 
-            <label>
+            <label htmlFor="campaign-type">
               <span>Campaign Type</span>
-              <select name="campaign_type" value={form.campaign_type} onChange={handleChange}>
+              <select id="campaign-type" name="campaign_type" value={form.campaign_type} onChange={handleChange}>
                 <option value="bulk">Bulk / Marketing</option>
                 <option value="transactional">Transactional</option>
               </select>
@@ -225,9 +228,9 @@ export default function CampaignsPage() {
         return (
           <div className="builder-step">
             <h3>Step 2: Choose Template</h3>
-            <label>
+            <label htmlFor="campaign-template">
               <span>Email Template *</span>
-              <select name="template_id" value={form.template_id} onChange={handleChange} required>
+              <select id="campaign-template" name="template_id" value={form.template_id} onChange={handleChange} required>
                 <option value="">-- Select a template --</option>
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
@@ -251,9 +254,9 @@ export default function CampaignsPage() {
 
             {mailingLists.length > 0 && (
               <div>
-                <label style={{ display: 'block', marginBottom: '10px' }}>
+                <div style={{ display: 'block', marginBottom: '10px' }}>
                   <strong>Mailing Lists</strong>
-                </label>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
                   {mailingLists.map((list) => (
                     <label key={list.id} style={{ display: 'flex', alignItems: 'center' }}>
@@ -271,9 +274,9 @@ export default function CampaignsPage() {
 
             {segments.length > 0 && (
               <div style={{ marginTop: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '10px' }}>
+                <div style={{ display: 'block', marginBottom: '10px' }}>
                   <strong>Segments</strong>
-                </label>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
                   {segments.map((segment) => (
                     <label key={segment.id} style={{ display: 'flex', alignItems: 'center' }}>
@@ -302,8 +305,9 @@ export default function CampaignsPage() {
           <div className="builder-step">
             <h3>Step 4: Schedule (Optional)</h3>
 
-            <label>
+            <label htmlFor="campaign-scheduled">
               <input
+                id="campaign-scheduled"
                 type="checkbox"
                 name="scheduled"
                 checked={form.scheduled}
@@ -313,9 +317,10 @@ export default function CampaignsPage() {
             </label>
 
             {form.scheduled && (
-              <label style={{ marginTop: '15px' }}>
+              <label htmlFor="campaign-send-time" style={{ marginTop: '15px' }}>
                 <span>Send Date & Time</span>
                 <input
+                  id="campaign-send-time"
                   type="datetime-local"
                   name="send_time"
                   value={form.send_time}
@@ -372,6 +377,22 @@ export default function CampaignsPage() {
       setTestForm({ recipient_email: '', campaignId: null })
     } catch (err) {
       setError(err?.response?.data?.detail || 'Failed to send test email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSendCampaign = async (campaignId) => {
+    if (!window.confirm('Send this campaign to all eligible contacts now?')) return
+
+    try {
+      setLoading(true)
+      setError('')
+      const result = await sendCampaign(campaignId)
+      await loadCampaigns()
+      alert(`Campaign sent. Sent: ${result.sent}, Failed: ${result.failed}`)
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to send campaign')
     } finally {
       setLoading(false)
     }
@@ -482,6 +503,18 @@ export default function CampaignsPage() {
                   >
                     Delete
                   </button>
+                  {(campaign.status === 'draft' || campaign.status === 'scheduled') && (
+                    <button
+                      className="primary-button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSendCampaign(campaign.id)
+                      }}
+                      disabled={loading}
+                    >
+                      Send Campaign
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -498,8 +531,9 @@ export default function CampaignsPage() {
                   </p>
 
                   <div style={{ marginTop: '15px' }}>
-                    <label style={{ display: 'flex', gap: '8px' }}>
+                    <label htmlFor={`test-email-${campaign.id}`} style={{ display: 'flex', gap: '8px' }}>
                       <input
+                        id={`test-email-${campaign.id}`}
                         type="email"
                         value={testForm.campaignId === campaign.id ? testForm.recipient_email : ''}
                         onChange={(event) =>
@@ -510,6 +544,7 @@ export default function CampaignsPage() {
                         }
                         onClick={(e) => e.stopPropagation()}
                         placeholder="Test email address"
+                        autoComplete="email"
                         style={{ flex: 1 }}
                       />
                       <button

@@ -3,8 +3,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy import exists, select
+
 from app.domain.entities.campaign import Campaign, CampaignStatus, CampaignType
 from app.infrastructure.email.providers.factory import EmailProviderFactory
+from app.application.services.template_renderer import TemplateRendererService
+from app.core.config import settings
+from app.infrastructure.database.models import (
+    Campaign as CampaignModel,
+    CampaignRecipient,
+    Contact,
+    EmailEvent,
+    ListContact,
+    Suppression,
+)
 
 
 class CampaignService:
@@ -45,6 +57,8 @@ class CampaignService:
             if not template or template.user_id != user_id:
                 raise ValueError("Template not found or not owned by this user")
 
+        scheduled_at = self._parse_scheduled_at(payload.get("scheduled_at"))
+
         campaign = Campaign(
             user_id=user_id,
             template_id=template_id,
@@ -53,7 +67,7 @@ class CampaignService:
             status=CampaignStatus.DRAFT,
             campaign_type=CampaignType(payload.get("campaign_type", CampaignType.BULK.value)),
             audience_criteria=payload.get("audience_criteria", {}),
-            scheduled_at=payload.get("scheduled_at"),
+            scheduled_at=scheduled_at,
             is_test=bool(payload.get("is_test", False)),
         )
 
@@ -87,7 +101,8 @@ class CampaignService:
 
         for field in ["name", "subject", "template_id", "campaign_type", "audience_criteria", "scheduled_at", "is_test"]:
             if field in payload and payload[field] is not None:
-                setattr(campaign, field, payload[field])
+                value = self._parse_scheduled_at(payload[field]) if field == "scheduled_at" else payload[field]
+                setattr(campaign, field, value)
 
         campaign.updated_at = datetime.utcnow()
         updated = await self.repository.update(campaign)
@@ -141,6 +156,122 @@ class CampaignService:
             "message": f"Test email sent to {recipient_email}" if result.success else (result.error or "Email delivery failed"),
             "success": bool(result.success),
         }
+
+    async def send_campaign(self, user_id: str, campaign_id: str) -> dict:
+        """Send a campaign to its resolved, subscribed audience."""
+        campaign = await self.repository.get_by_id(campaign_id)
+        if not campaign or campaign.user_id != user_id:
+            raise ValueError("Campaign not found or not owned by this user")
+        if campaign.status not in ("draft", "scheduled"):
+            raise ValueError("Only draft or scheduled campaigns can be sent")
+        if not campaign.template_id or self.template_repository is None:
+            raise ValueError("Campaign template is required before sending")
+
+        template = await self.template_repository.get_by_id(campaign.template_id)
+        if not template or template.user_id != user_id:
+            raise ValueError("Campaign template not found or not owned by this user")
+
+        criteria = campaign.audience_criteria or {}
+        list_ids = criteria.get("list_ids") or []
+        session = self.repository.session
+        contact_query = select(Contact).where(
+            Contact.user_id == user_id,
+            Contact.status == "subscribed",
+            ~exists().where(Suppression.user_id == user_id, Suppression.email == Contact.email),
+        )
+        if list_ids:
+            contact_query = contact_query.join(ListContact, ListContact.contact_id == Contact.id).where(
+                ListContact.list_id.in_(list_ids)
+            )
+
+        contacts = list((await session.execute(contact_query)).scalars().unique().all())
+        if not contacts:
+            raise ValueError("No subscribed contacts are available for this campaign")
+
+        campaign.status = "sending"
+        campaign.total_recipients = len(contacts)
+        await session.commit()
+
+        provider_name = "smtp" if settings.SMTP_USERNAME and settings.SMTP_PASSWORD else "zeptomail"
+        provider = EmailProviderFactory.get_provider(provider_name)
+        from_email = getattr(provider, "username", None) or "noreply@mailforge.local"
+        sent_count = 0
+        failed_count = 0
+
+        for contact in contacts:
+            recipient = CampaignRecipient(
+                campaign_id=campaign.id,
+                contact_id=contact.id,
+                email=contact.email,
+                status="pending",
+            )
+            session.add(recipient)
+            await session.flush()
+            variables = {
+                "email": contact.email,
+                "first_name": contact.first_name,
+                "last_name": contact.last_name,
+                **(contact.custom_fields or {}),
+            }
+            html_body = TemplateRendererService.render_html(
+                template.html_content or "",
+                variables,
+                campaign.id,
+                contact.id,
+            )
+            text_body = TemplateRendererService.render_text(
+                template.plain_text_content or "",
+                variables,
+            )
+            result = provider.send(
+                to_email=contact.email,
+                subject=TemplateRendererService.replace_variables(campaign.subject, variables),
+                body=html_body or text_body,
+                from_email=from_email,
+                metadata={"campaign_id": campaign.id, "contact_id": contact.id},
+            )
+            if result.success:
+                recipient.status = "sent"
+                recipient.delivered_at = datetime.utcnow()
+                campaign.delivered_count += 1
+                sent_count += 1
+                session.add(EmailEvent(
+                    campaign_id=campaign.id,
+                    contact_id=contact.id,
+                    email=contact.email,
+                    event_type="sent",
+                    event_data={"provider": result.provider, "message_id": result.message_id},
+                ))
+            else:
+                recipient.status = "failed"
+                recipient.failed_reason = result.error or "Email delivery failed"
+                campaign.failed_count += 1
+                failed_count += 1
+
+        campaign.status = "sent" if failed_count == 0 else "failed"
+        campaign.sent_at = datetime.utcnow()
+        campaign.updated_at = datetime.utcnow()
+        await session.commit()
+        return {
+            "campaign_id": campaign.id,
+            "status": campaign.status,
+            "total": len(contacts),
+            "sent": sent_count,
+            "failed": failed_count,
+        }
+
+    @staticmethod
+    def _parse_scheduled_at(value):
+        if value in (None, ""):
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("scheduled_at must be a valid ISO datetime") from exc
+        raise ValueError("scheduled_at must be a valid ISO datetime")
 
     @staticmethod
     def _serialize(campaign) -> dict:

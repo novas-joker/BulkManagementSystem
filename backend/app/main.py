@@ -9,6 +9,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+
+from app.core.config import settings
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.campaigns import router as campaigns_router
@@ -28,6 +31,32 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("mailforge")
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Apply browser security headers to every API response."""
+
+    def __init__(self, app: ASGIApp):
+        super().__init__(app)
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:",
+        )
+        if settings.is_production() and request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
 
 
 # ─── Lifespan ─────────────────────────────────────────────────────────────────
@@ -60,9 +89,10 @@ def create_app() -> FastAPI:
         allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"],
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["Accept", "Authorization", "Content-Type"],
         expose_headers=["Content-Disposition"],
     )
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ── Health Check Route ────────────────────────────────────────────────────
     @app.get("/health", tags=["Health"])
@@ -82,12 +112,6 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error", "type": type(exc).__name__},
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("origin", "http://localhost:5173"),
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "*",
-            }
         )
 
     @app.exception_handler(ValueError)
@@ -96,12 +120,6 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=400,
             content={"detail": str(exc)},
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("origin", "http://localhost:5173"),
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "*",
-            }
         )
 
     app.include_router(auth_router)

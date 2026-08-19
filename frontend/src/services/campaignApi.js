@@ -42,3 +42,10 @@ export const sendCampaignTestEmail = async (campaignId, recipientEmail) => {
   })
   return data
 }
+
+export const sendCampaign = async (campaignId) => {
+  const { data } = await api.post(`/campaigns/${campaignId}/send`, {}, {
+    headers: authHeaders(),
+  })
+  return data
+}
