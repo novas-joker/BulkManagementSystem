@@ -141,7 +141,7 @@ class CampaignService:
         result = provider.send(
             to_email=recipient_email,
             subject=subject,
-            body=template.html_content or template.text_content or template.plain_text_content or "",
+            body=template.html_content or template.plain_text_content or "",
             from_email=getattr(provider, "username", "noreply@example.com"),
             metadata={
                 "campaign_id": campaign_id,

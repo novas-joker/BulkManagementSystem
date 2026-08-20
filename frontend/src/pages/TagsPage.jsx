@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createTag, deleteTag, getTags, updateTag } from '../services/tagApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function TagsPage() {
   const [tags, setTags] = useState([])
@@ -55,7 +56,7 @@ export default function TagsPage() {
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save tag')
+      setError(getApiErrorMessage(err, 'Failed to save tag'))
     } finally {
       setLoading(false)
     }
@@ -68,11 +69,12 @@ export default function TagsPage() {
   }
 
   const handleDelete = async (tagId) => {
-    if (!window.confirm('Are you sure you want to delete this tag?')) return
+    if (!await confirmDialog({ title: 'Delete tag?', message: 'This tag will be removed from your workspace.', confirmLabel: 'Delete tag' })) return
 
     try {
       await deleteTag(tagId)
       setTags((current) => current.filter((item) => item.id !== tagId))
+      showToast('Tag deleted.')
     } catch {
       setError('Failed to delete tag')
     }

@@ -5,6 +5,7 @@ import {
   deleteSuppression,
   getSuppressions,
 } from '../services/suppressionApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function SuppressionPage() {
   const [suppressions, setSuppressions] = useState([])
@@ -76,18 +77,19 @@ export default function SuppressionPage() {
       setShowForm(false)
       setIsBulk(false)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to add suppression')
+      setError(getApiErrorMessage(err, 'Failed to add suppression'))
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async (suppressionId) => {
-    if (!window.confirm('Are you sure you want to remove this suppression?')) return
+    if (!await confirmDialog({ title: 'Remove suppression?', message: 'This address may become eligible for future campaigns.', confirmLabel: 'Remove suppression' })) return
 
     try {
       await deleteSuppression(suppressionId)
       setSuppressions((current) => current.filter((item) => item.id !== suppressionId))
+      showToast('Suppression removed.')
     } catch {
       setError('Failed to delete suppression')
     }

@@ -50,6 +50,11 @@ export const registerUser = async ({ full_name, email, password }) => {
   return data
 }
 
+export const authService = {
+  register: registerUser,
+  login: loginUser,
+}
+
 export const refreshAccessToken = async () => {
   const refreshToken = getRefreshToken()
   

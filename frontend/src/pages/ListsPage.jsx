@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createMailingList, deleteMailingList, getMailingLists, updateMailingList } from '../services/listApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function ListsPage() {
   const [lists, setLists] = useState([])
@@ -55,7 +56,7 @@ export default function ListsPage() {
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save mailing list')
+      setError(getApiErrorMessage(err, 'Failed to save mailing list'))
     } finally {
       setLoading(false)
     }
@@ -68,11 +69,12 @@ export default function ListsPage() {
   }
 
   const handleDelete = async (listId) => {
-    if (!window.confirm('Are you sure you want to delete this mailing list?')) return
+    if (!await confirmDialog({ title: 'Delete mailing list?', message: 'Contacts remain safe, but this list will be removed.', confirmLabel: 'Delete list' })) return
 
     try {
       await deleteMailingList(listId)
       setLists((current) => current.filter((item) => item.id !== listId))
+      showToast('Mailing list deleted.')
     } catch {
       setError('Failed to delete mailing list')
     }

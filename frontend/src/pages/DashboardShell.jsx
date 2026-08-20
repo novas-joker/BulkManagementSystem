@@ -10,6 +10,7 @@ import { getCampaigns } from '../services/campaignApi'
 import { getContacts } from '../services/contactApi'
 import { getMailingLists } from '../services/listApi'
 import { getTemplates } from '../services/templateApi'
+import { subscribeDashboardUi } from '../services/dashboardUi'
 
 const PAGE_COMPONENTS = {
   overview: null,
@@ -42,6 +43,22 @@ export default function DashboardShell({ user, onLogout }) {
     mailingLists: 0,
   })
   const [loading, setLoading] = useState(false)
+  const [uiDialog, setUiDialog] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  useEffect(() => subscribeDashboardUi((event) => {
+    if (event.type === 'toast') {
+      setToast(event)
+      window.setTimeout(() => setToast(null), 3600)
+    } else {
+      setUiDialog(event)
+    }
+  }), [])
+
+  const closeDialog = (value) => {
+    uiDialog?.resolve(value)
+    setUiDialog(null)
+  }
 
   useEffect(() => {
     loadStats()
@@ -73,6 +90,7 @@ export default function DashboardShell({ user, onLogout }) {
   }
 
   const PageComponent = PAGE_COMPONENTS[currentPage]
+  const currentNavItem = NAV_ITEMS.find((item) => item.id === currentPage)
 
   const renderOverview = () => (
     <div className="dashboard-main">
@@ -165,6 +183,8 @@ export default function DashboardShell({ user, onLogout }) {
 
   return (
     <div className="dashboard-shell">
+      {toast && <div className={`dashboard-toast ${toast.tone}`} role="status"><span>✓</span>{toast.message}<button type="button" onClick={() => setToast(null)} aria-label="Dismiss notification">×</button></div>}
+      {uiDialog && <div className="ui-dialog-backdrop" role="presentation"><div className="ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title"><div className="ui-dialog-mark">{uiDialog.type === 'prompt' ? '✎' : '?'}</div><h2 id="ui-dialog-title">{uiDialog.title}</h2><p>{uiDialog.message}</p>{uiDialog.type === 'prompt' && <input className="ui-dialog-input" autoFocus defaultValue={uiDialog.defaultValue} id="ui-dialog-input" /> }<div className="ui-dialog-actions"><button type="button" className="secondary-button" onClick={() => closeDialog(uiDialog.type === 'prompt' ? null : false)}>Cancel</button><button type="button" className={`primary-button ${uiDialog.tone === 'danger' ? 'danger-button' : ''}`} onClick={() => closeDialog(uiDialog.type === 'prompt' ? document.getElementById('ui-dialog-input')?.value || null : true)}>{uiDialog.confirmLabel}</button></div></div></div>}
       <aside className="sidebar">
         <div className="brand sidebar-brand">
           <span className="brand-mark">M</span>
@@ -196,15 +216,19 @@ export default function DashboardShell({ user, onLogout }) {
         </button>
       </aside>
 
-      {currentPage === 'overview' ? (
-        renderOverview()
-      ) : PageComponent ? (
-        <PageComponent />
-      ) : (
-        <div className="dashboard-main">
-          <p>Page not found</p>
-        </div>
-      )}
+      <div className="workspace-canvas">
+        <header className="workspace-topbar">
+          <div className="workspace-context"><span className="workspace-context-mark">✦</span><div><span>MailForge workspace</span><strong>{currentNavItem?.label || 'Overview'}</strong></div></div>
+          <div className="workspace-actions"><span className="workspace-status"><i /> All systems ready</span><span className="workspace-date">Tuesday, 19 August 2026</span><div className="workspace-user"><span className="avatar">{user?.full_name?.charAt(0) || 'U'}</span><span>{user?.full_name?.split(' ')[0] || 'User'}</span></div></div>
+        </header>
+        {currentPage === 'overview' ? (
+          renderOverview()
+        ) : PageComponent ? (
+          <PageComponent />
+        ) : (
+          <div className="dashboard-main"><p>Page not found</p></div>
+        )}
+      </div>
     </div>
   )
 }

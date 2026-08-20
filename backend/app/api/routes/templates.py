@@ -139,7 +139,10 @@ async def duplicate_template(
             "name": payload.new_name,
             "subject": original["subject"],
             "html_content": original["html_content"],
-            "text_content": original.get("text_content", ""),
+            "plain_text_content": original.get("plain_text_content", ""),
+            "preview_text": original.get("preview_text", ""),
+            "template_type": original.get("template_type", "standard"),
+            "template_variables": original.get("template_variables", []),
         }
         duplicate = await service.create_template(current_user.id, copy_data)
         return TemplateResponse(**duplicate)
@@ -164,7 +167,7 @@ async def preview_template(
     # Generate preview with placeholder variables
     preview = TemplateRendererService.preview_render(
         template.get("html_content", ""),
-        template.get("text_content", ""),
+        template.get("plain_text_content", ""),
     )
 
     return TemplatePreviewResponse(
@@ -193,7 +196,7 @@ async def send_test_email(
     result = provider.send(
         to_email=str(payload.recipient_email),
         subject=(payload.subject_override or template["subject"]).strip() or "Test email",
-        body=template.get("html_content") or template.get("text_content") or "",
+        body=template.get("html_content") or template.get("plain_text_content") or "",
         from_email=provider.username if hasattr(provider, "username") else "noreply@example.com",
         metadata={
             "template_id": template_id,

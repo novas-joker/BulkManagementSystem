@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createSegment, deleteSegment, getSegments, previewSegment, updateSegment } from '../services/segmentApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function SegmentsPage() {
   const [segments, setSegments] = useState([])
@@ -78,7 +79,7 @@ export default function SegmentsPage() {
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save segment')
+      setError(getApiErrorMessage(err, 'Failed to save segment'))
     } finally {
       setLoading(false)
     }
@@ -109,11 +110,12 @@ export default function SegmentsPage() {
   }
 
   const handleDelete = async (segmentId) => {
-    if (!window.confirm('Are you sure you want to delete this segment?')) return
+    if (!await confirmDialog({ title: 'Delete segment?', message: 'This audience segment will be removed.', confirmLabel: 'Delete segment' })) return
 
     try {
       await deleteSegment(segmentId)
       setSegments((current) => current.filter((item) => item.id !== segmentId))
+      showToast('Segment deleted.')
     } catch {
       setError('Failed to delete segment')
     }
