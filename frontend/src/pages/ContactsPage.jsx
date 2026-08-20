@@ -10,6 +10,7 @@ import {
   updateContact,
   validateCSV,
 } from '../services/contactApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([])
@@ -84,7 +85,7 @@ export default function ContactsPage() {
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save contact')
+      setError(getApiErrorMessage(err, 'Failed to save contact'))
     } finally {
       setLoading(false)
     }
@@ -102,11 +103,12 @@ export default function ContactsPage() {
   }
 
   const handleDelete = async (contactId) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return
+    if (!await confirmDialog({ title: 'Delete contact?', message: 'This contact will be removed from your audience.', confirmLabel: 'Delete contact' })) return
 
     try {
       await deleteContact(contactId)
       setContacts((current) => current.filter((item) => item.id !== contactId))
+      showToast('Contact deleted.')
     } catch {
       setError('Failed to delete contact')
     }
@@ -155,7 +157,7 @@ export default function ContactsPage() {
         step: result?.valid ? 'mapping' : 'upload',
       }))
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to validate CSV')
+      setError(getApiErrorMessage(err, 'Failed to validate CSV'))
     } finally {
       setLoading(false)
     }
@@ -173,7 +175,7 @@ export default function ContactsPage() {
         step: 'preview',
       }))
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to preview import')
+      setError(getApiErrorMessage(err, 'Failed to preview import'))
     } finally {
       setLoading(false)
     }
@@ -198,11 +200,9 @@ export default function ContactsPage() {
       })
       setShowImport(false)
       // Show import result
-      alert(
-        `Import complete! Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors}`
-      )
+      showToast(`Import complete. Imported: ${result.imported}, skipped: ${result.skipped}, errors: ${result.errors}.`)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to import CSV')
+      setError(getApiErrorMessage(err, 'Failed to import CSV'))
     } finally {
       setLoading(false)
     }
@@ -232,7 +232,7 @@ export default function ContactsPage() {
       await loadContacts()
       setSelectedContacts(new Set())
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to update contacts')
+      setError(getApiErrorMessage(err, 'Failed to update contacts'))
     } finally {
       setLoading(false)
     }
@@ -244,15 +244,16 @@ export default function ContactsPage() {
       return
     }
 
-    if (!window.confirm('Unsubscribe these contacts?')) return
+    if (!await confirmDialog({ title: 'Unsubscribe contacts?', message: 'Selected contacts will stop receiving campaigns.', confirmLabel: 'Unsubscribe' })) return
 
     try {
       setLoading(true)
       await bulkUnsubscribe(Array.from(selectedContacts))
       await loadContacts()
       setSelectedContacts(new Set())
+      showToast('Contacts unsubscribed.')
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to update contacts')
+      setError(getApiErrorMessage(err, 'Failed to update contacts'))
     } finally {
       setLoading(false)
     }

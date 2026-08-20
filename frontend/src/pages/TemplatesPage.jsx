@@ -8,6 +8,7 @@ import {
   sendTestEmail,
   updateTemplate,
 } from '../services/templateApi'
+import { confirmDialog, getApiErrorMessage, promptDialog, showToast } from '../services/dashboardUi'
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState([])
@@ -117,7 +118,7 @@ export default function TemplatesPage() {
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save template')
+      setError(getApiErrorMessage(err, 'Failed to save template'))
     } finally {
       setLoading(false)
     }
@@ -158,18 +159,18 @@ export default function TemplatesPage() {
     try {
       setLoading(true)
       await sendTestEmail(testEmailModal.templateId, testForm.recipient_email)
-      alert('Test email sent! Check your inbox.')
+      showToast('Test email sent. Check your inbox.')
       setTestEmailModal({ visible: false, templateId: null })
       setTestForm({ recipient_email: '' })
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to send test email')
+      setError(getApiErrorMessage(err, 'Failed to send test email'))
     } finally {
       setLoading(false)
     }
   }
 
   const handleDuplicate = async (template) => {
-    const newName = window.prompt('Enter name for duplicated template:', `${template.name} (Copy)`)
+    const newName = await promptDialog({ title: 'Duplicate template', message: 'Choose a name for the new template.', defaultValue: `${template.name} (Copy)`, confirmLabel: 'Duplicate' })
     if (!newName) return
 
     try {
@@ -177,18 +178,19 @@ export default function TemplatesPage() {
       const duplicated = await duplicateTemplate(template.id, newName)
       setTemplates((current) => [duplicated, ...current])
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to duplicate template')
+      setError(getApiErrorMessage(err, 'Failed to duplicate template'))
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async (templateId) => {
-    if (!window.confirm('Are you sure you want to delete this template?')) return
+    if (!await confirmDialog({ title: 'Delete template?', message: 'This template will be removed from your workspace.', confirmLabel: 'Delete template' })) return
 
     try {
       await deleteTemplate(templateId)
       setTemplates((current) => current.filter((item) => item.id !== templateId))
+      showToast('Template deleted.')
     } catch {
       setError('Failed to delete template')
     }

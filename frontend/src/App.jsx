@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import './App.css'
-import { clearAuthState, getCurrentUserProfile, getStoredUser, loginUser, logoutUser, registerUser } from './services/authApi'
+import { authService, clearAuthState, getCurrentUserProfile, getStoredUser, logoutUser } from './services/authApi'
 import LandingPage from './pages/LandingPage'
 import AuthForm from './components/AuthForm'
 import DashboardShell from './pages/DashboardShell'
+import { getApiErrorMessage } from './services/dashboardUi'
 
 function App() {
   const [mode, setMode] = useState('login')
@@ -22,16 +22,16 @@ function App() {
       const activeMode = view === 'register' ? 'register' : 'login'
 
       if (activeMode === 'register') {
-        await registerUser(formData)
+        await authService.register(formData)
       } else {
-        await loginUser(formData)
+        await authService.login(formData)
       }
 
       const user = getStoredUser()
       setCurrentUser(user)
       setView('dashboard')
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Something went wrong. Please try again.')
+      setError(getApiErrorMessage(err))
     } finally {
       setLoading(false)
     }

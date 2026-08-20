@@ -3,6 +3,7 @@ import { getCampaigns, createCampaign, deleteCampaign, sendCampaign, sendCampaig
 import { getTemplates } from '../services/templateApi'
 import { getMailingLists } from '../services/listApi'
 import { getSegments } from '../services/segmentApi'
+import { confirmDialog, getApiErrorMessage, showToast } from '../services/dashboardUi'
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([])
@@ -174,7 +175,7 @@ export default function CampaignsPage() {
 
       closeBuilder()
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to save campaign')
+      setError(getApiErrorMessage(err, 'Failed to save campaign'))
     } finally {
       setLoading(false)
     }
@@ -354,11 +355,12 @@ export default function CampaignsPage() {
 
 
   const handleDelete = async (campaignId) => {
-    if (!window.confirm('Delete this campaign?')) return
+    if (!await confirmDialog({ title: 'Delete campaign?', message: 'This campaign will be removed from your workspace.', confirmLabel: 'Delete campaign' })) return
 
     try {
       await deleteCampaign(campaignId)
       setCampaigns((current) => current.filter((item) => item.id !== campaignId))
+      showToast('Campaign deleted.')
     } catch {
       setError('Failed to delete campaign')
     }
@@ -373,26 +375,26 @@ export default function CampaignsPage() {
     try {
       setLoading(true)
       const response = await sendCampaignTestEmail(testForm.campaignId, testForm.recipient_email)
-      alert(response?.message || 'Test email sent successfully')
+      showToast(response?.message || 'Test email sent successfully.')
       setTestForm({ recipient_email: '', campaignId: null })
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to send test email')
+      setError(getApiErrorMessage(err, 'Failed to send test email'))
     } finally {
       setLoading(false)
     }
   }
 
   const handleSendCampaign = async (campaignId) => {
-    if (!window.confirm('Send this campaign to all eligible contacts now?')) return
+    if (!await confirmDialog({ title: 'Send campaign now?', message: 'MailForge will send this campaign to every eligible contact.', confirmLabel: 'Send campaign', tone: 'primary' })) return
 
     try {
       setLoading(true)
       setError('')
       const result = await sendCampaign(campaignId)
       await loadCampaigns()
-      alert(`Campaign sent. Sent: ${result.sent}, Failed: ${result.failed}`)
+      showToast(`Campaign sent. Sent: ${result.sent}, Failed: ${result.failed}.`)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to send campaign')
+      setError(getApiErrorMessage(err, 'Failed to send campaign'))
     } finally {
       setLoading(false)
     }
