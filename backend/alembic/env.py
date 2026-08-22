@@ -1,4 +1,8 @@
 from logging.config import fileConfig
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
@@ -12,7 +16,10 @@ from app.infrastructure.database.models.models import *
 config = context.config
 
 # Set the database URL dynamically from project settings.
-config.set_main_option("sqlalchemy.url", settings.SYNC_DATABASE_URL)
+sync_database_url = settings.SYNC_DATABASE_URL
+if sync_database_url.startswith("postgresql://"):
+    sync_database_url = sync_database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+config.set_main_option("sqlalchemy.url", sync_database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

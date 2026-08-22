@@ -22,6 +22,7 @@ from app.api.routes.tags import router as tags_router
 from app.api.routes.segments import router as segments_router
 from app.api.routes.suppressions import router as suppressions_router
 from app.api.routes.tracking import router as tracking_router
+from app.api.routes.onboarding import router as onboarding_router
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ def create_app() -> FastAPI:
     app.include_router(segments_router)
     app.include_router(suppressions_router)
     app.include_router(tracking_router)
+    app.include_router(onboarding_router)
     return app
 
 

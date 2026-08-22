@@ -106,4 +106,33 @@ export const getCurrentUserProfile = async () => {
   return data
 }
 
+export const getOnboardingPhaseOne = async () => {
+  const { data } = await api.get('/onboarding/phase-one', {
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  })
+  return data
+}
+
+export const saveOnboardingPhaseOne = async (payload) => {
+  const { data } = await api.put('/onboarding/phase-one', payload, {
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  })
+  return data
+}
+
+export const requestPasswordReset = async (email) => {
+  const { data } = await api.post('/auth/forgot-password', { email })
+  return data
+}
+
+export const validatePasswordResetToken = async (token) => {
+  const { data } = await api.get('/auth/reset-password/validate', { params: { token } })
+  return data
+}
+
+export const resetPassword = async (token, newPassword) => {
+  const { data } = await api.post('/auth/reset-password', { token, new_password: newPassword })
+  return data
+}
+
 export default api

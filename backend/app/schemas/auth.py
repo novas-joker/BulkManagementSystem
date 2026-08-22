@@ -57,3 +57,46 @@ class UserProfileResponse(BaseModel):
     role: str
     status: str
     status: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    token: str = Field(..., min_length=20, max_length=200)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+class OnboardingPhaseOneResponse(BaseModel):
+    """Saved onboarding data for the authenticated user."""
+
+    subscriber_count_bracket: Optional[str] = None
+    previous_tool: Optional[str] = None
+    business_industry: Optional[str] = None
+    business_website: Optional[str] = None
+    compliance_address: Optional[dict[str, str]] = None
+    user_primary_goal: Optional[str] = None
+    product_updates_consent: Optional[bool] = None
+    onboarding_phase: int = 1
+    onboarding_completed: bool = False
+
+
+class OnboardingPhaseOneRequest(BaseModel):
+    """Payload for saving onboarding progress."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    subscriber_count_bracket: Optional[str] = Field(default=None, min_length=1, max_length=40)
+    previous_tool: Optional[str] = Field(default=None, max_length=120)
+    business_industry: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    business_website: Optional[str] = Field(default=None, max_length=500)
+    compliance_address: Optional[dict[str, str]] = None
+    user_primary_goal: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    product_updates_consent: Optional[bool] = None
+    onboarding_phase: int = Field(default=1, ge=1, le=5)
+    onboarding_completed: bool = False

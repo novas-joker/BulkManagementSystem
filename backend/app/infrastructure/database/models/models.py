@@ -91,6 +91,15 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login_at = Column(DateTime, nullable=True)
+    subscriber_count_bracket = Column(String(40), nullable=True)
+    previous_tool = Column(String(120), nullable=True)
+    business_industry = Column(String(80), nullable=True)
+    business_website = Column(String(500), nullable=True)
+    compliance_address = Column(JSON, nullable=True)
+    user_primary_goal = Column(String(80), nullable=True)
+    product_updates_consent = Column(Boolean, nullable=True)
+    onboarding_phase = Column(Integer, default=1, nullable=False)
+    onboarding_completed = Column(Boolean, default=False, nullable=False)
 
     contacts = relationship("Contact", back_populates="user", cascade="all, delete-orphan")
     mailing_lists = relationship("MailingList", back_populates="user", cascade="all, delete-orphan")
@@ -99,6 +108,7 @@ class User(Base):
     templates = relationship("EmailTemplate", back_populates="user", cascade="all, delete-orphan")
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     provider_credentials = relationship("ProviderCredential", back_populates="user", cascade="all, delete-orphan")
     suppressions = relationship("Suppression", back_populates="user", cascade="all, delete-orphan")
     integrations = relationship("Integration", back_populates="user", cascade="all, delete-orphan")
@@ -280,6 +290,19 @@ class RefreshToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     user = relationship("User", back_populates="refresh_tokens")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="password_reset_tokens")
 
 
 class ProviderCredential(Base):

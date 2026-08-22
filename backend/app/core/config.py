@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     
     # ─── Database ─────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://mailforge:mailforge_password@localhost:5432/mailforge_db"
-    SYNC_DATABASE_URL: str = "postgresql://mailforge:mailforge_password@localhost:5432/mailforge_db"
+    SYNC_DATABASE_URL: str = "postgresql+psycopg://mailforge:mailforge_password@localhost:5432/mailforge_db"
     
     # ─── Redis (Broker & Cache) ───────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # ─── ZeptoMail Configuration ─────────────────────────────────────────────
     ZEPTOMAIL_API_URL: str = "https://api.zeptomail.com/v1.1/email"
     ZEPTOMAIL_SEND_MAIL_TOKEN: str = ""
+    ZEPTOMAIL_FROM_EMAIL: str = "no-reply@mailforge.local"
     ZEPTOMAIL_MOCK: bool = True
     
     # ─── SMTP Configuration (Fallback) ───────────────────────────────────────
