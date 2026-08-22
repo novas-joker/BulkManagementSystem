@@ -28,6 +28,7 @@ export default function ContactsPage() {
   })
   const [csvForm, setCsvForm] = useState({
     csvContent: '',
+    fileName: '',
     validationResult: null,
     previewResult: null,
     columnMapping: {},
@@ -63,7 +64,35 @@ export default function ContactsPage() {
     setCsvForm((current) => ({
       ...current,
       [event.target.name]: event.target.value,
+      ...(event.target.name === 'csvContent' ? { fileName: '' } : {}),
     }))
+  }
+
+  const handleCsvFileChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Choose a CSV file to import.')
+      event.target.value = ''
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCsvForm((current) => ({
+        ...current,
+        csvContent: typeof reader.result === 'string' ? reader.result : '',
+        fileName: file.name,
+        validationResult: null,
+        previewResult: null,
+        columnMapping: {},
+        step: 'upload',
+      }))
+      setError('')
+    }
+    reader.onerror = () => setError('Could not read that CSV file. Try another file.')
+    reader.readAsText(file)
   }
 
   const handleSubmit = async (event) => {
@@ -192,6 +221,7 @@ export default function ContactsPage() {
       await loadContacts()
       setCsvForm({
         csvContent: '',
+        fileName: '',
         validationResult: null,
         previewResult: null,
         columnMapping: {},
@@ -369,6 +399,16 @@ export default function ContactsPage() {
 
           {csvForm.step === 'upload' && (
             <>
+              <div className="csv-format-guide">
+                <div><span className="csv-guide-mark" aria-hidden="true">CSV</span><div><strong>Use this format</strong><p>Your first row should contain column names. <code>email</code> is required; names and status are optional.</p></div></div>
+                <pre>email,first_name,last_name,status{`\n`}alex@example.com,Alex,Johnson,subscribed</pre>
+              </div>
+              <label className="csv-file-picker">
+                <span>Upload a CSV file</span>
+                <input type="file" accept=".csv,text/csv" onChange={handleCsvFileChange} />
+                <span className="csv-file-dropzone"><strong>{csvForm.fileName || 'Choose a CSV file'}</strong><small>{csvForm.fileName ? 'File ready to validate' : 'CSV files only, up to your workspace limit'}</small></span>
+              </label>
+              <div className="csv-or"><span>or paste rows below</span></div>
               <label>
                 <span>Paste CSV Content</span>
                 <textarea
@@ -466,6 +506,7 @@ export default function ContactsPage() {
                   onClick={() => {
                     setCsvForm({
                       csvContent: '',
+                      fileName: '',
                       validationResult: null,
                       previewResult: null,
                       columnMapping: {},

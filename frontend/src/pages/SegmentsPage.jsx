@@ -13,7 +13,7 @@ export default function SegmentsPage() {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    filter_criteria: '{}',
+    filter_criteria: '',
     is_active: true,
   })
 
@@ -27,7 +27,9 @@ export default function SegmentsPage() {
       const data = await getSegments()
       setSegments(Array.isArray(data) ? data : [])
     } catch (err) {
-      setError('Failed to load segments')
+      const message = getApiErrorMessage(err, 'Failed to load segments')
+      setError(message)
+      showToast(message, 'error')
       setSegments([])
     } finally {
       setLoading(false)
@@ -57,7 +59,9 @@ export default function SegmentsPage() {
       const payload = {
         name: form.name,
         description: form.description,
-        filter_criteria: form.filter_criteria ? JSON.parse(form.filter_criteria) : {},
+        filter_criteria: form.filter_criteria
+          ? Object.fromEntries([form.filter_criteria.split(':')])
+          : {},
         is_active: form.is_active,
       }
 
@@ -70,16 +74,19 @@ export default function SegmentsPage() {
         const created = await createSegment(payload)
         setSegments((current) => [created, ...current])
       }
+      showToast(editingId ? 'Segment updated successfully.' : 'Segment created successfully.')
       setForm({
         name: '',
         description: '',
-        filter_criteria: '{}',
+        filter_criteria: '',
         is_active: true,
       })
       setShowForm(false)
       setEditingId(null)
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to save segment'))
+      const message = getApiErrorMessage(err, 'Failed to save segment')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setLoading(false)
     }
@@ -89,7 +96,9 @@ export default function SegmentsPage() {
     setForm({
       name: segment.name,
       description: segment.description,
-      filter_criteria: JSON.stringify(segment.filter_criteria || {}),
+      filter_criteria: Object.entries(segment.filter_criteria || {})
+        .map(([key, value]) => `${key}:${value}`)
+        .find((value) => ['status:subscribed', 'status:unsubscribed', 'status:bounced', 'source:manual', 'source:import', 'source:api'].includes(value)) || '',
       is_active: segment.is_active,
     })
     setEditingId(segment.id)
@@ -102,8 +111,11 @@ export default function SegmentsPage() {
       const data = await previewSegment(segmentId)
       setPreviewData(data)
       setPreviewingId(segmentId)
-    } catch {
-      setError('Failed to preview segment')
+      showToast('Segment preview loaded successfully.')
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to preview segment')
+      setError(message)
+      showToast(message, 'error')
     } finally {
       setLoading(false)
     }
@@ -116,8 +128,10 @@ export default function SegmentsPage() {
       await deleteSegment(segmentId)
       setSegments((current) => current.filter((item) => item.id !== segmentId))
       showToast('Segment deleted.')
-    } catch {
-      setError('Failed to delete segment')
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Failed to delete segment')
+      setError(message)
+      showToast(message, 'error')
     }
   }
 
@@ -125,7 +139,7 @@ export default function SegmentsPage() {
     setForm({
       name: '',
       description: '',
-      filter_criteria: '{}',
+      filter_criteria: '',
       is_active: true,
     })
     setEditingId(null)
@@ -170,14 +184,20 @@ export default function SegmentsPage() {
             </label>
 
             <label>
-              <span>Filter Criteria (JSON)</span>
-              <textarea
+              <span>Filter Criteria</span>
+              <select
                 name="filter_criteria"
                 value={form.filter_criteria}
                 onChange={handleChange}
-                placeholder='{"status": "subscribed"}'
-                rows="4"
-              />
+              >
+                <option value="">All contacts</option>
+                <option value="status:subscribed">Subscribed contacts</option>
+                <option value="status:unsubscribed">Unsubscribed contacts</option>
+                <option value="status:bounced">Bounced contacts</option>
+                <option value="source:manual">Manually added contacts</option>
+                <option value="source:import">Imported contacts</option>
+                <option value="source:api">API contacts</option>
+              </select>
             </label>
 
             <label>

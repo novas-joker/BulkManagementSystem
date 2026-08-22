@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { authService, clearAuthState, getCurrentUserProfile, getOnboardingPhaseOne, getStoredUser, logoutUser } from './services/authApi'
 import LandingPage from './pages/LandingPage'
 import AuthForm from './components/AuthForm'
@@ -16,6 +16,18 @@ function App() {
   const resetToken = new URLSearchParams(window.location.search).get('token')
 
   const currentUserMemo = useMemo(() => currentUser, [currentUser])
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setCurrentUser(null)
+      setView('landing')
+      setMode('login')
+      setError('Your session expired. Please sign in again.')
+    }
+
+    window.addEventListener('mailforge-auth-expired', handleAuthExpired)
+    return () => window.removeEventListener('mailforge-auth-expired', handleAuthExpired)
+  }, [])
 
   const handleAuthSubmit = async (formData) => {
     setLoading(true)

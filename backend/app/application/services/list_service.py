@@ -4,7 +4,7 @@ from datetime import datetime
 
 from app.application.services.base_service import BaseService
 from app.infrastructure.repositories.list_repository import MailingListRepository
-from app.infrastructure.database.models import MailingList
+from app.infrastructure.database.models import Contact, MailingList
 
 
 class MailingListService(BaseService[MailingListRepository]):
@@ -74,6 +74,10 @@ class MailingListService(BaseService[MailingListRepository]):
         if not lst or lst.user_id != user_id:
             return None
 
+        contact = await self.repository.session.get(Contact, contact_id)
+        if not contact or contact.user_id != user_id:
+            return None
+
         membership = await self.repository.add_contact(list_id, contact_id)
         
         # Update contact count
@@ -87,6 +91,10 @@ class MailingListService(BaseService[MailingListRepository]):
         """Remove a contact from a list."""
         lst = await self.repository.get_by_id(list_id)
         if not lst or lst.user_id != user_id:
+            return False
+
+        contact = await self.repository.session.get(Contact, contact_id)
+        if not contact or contact.user_id != user_id:
             return False
 
         removed = await self.repository.remove_contact(list_id, contact_id)

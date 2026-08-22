@@ -15,12 +15,15 @@ MailForge is a high-performance, production-oriented bulk email campaign managem
 
 - **Contacts & Audience Management**:
   - Full CRUD operations with custom dynamic fields.
-  - High-speed CSV import with column mapping and deduplication.
-  - Static Mailing Lists and Tagging system.
+  - High-speed CSV import from a file or pasted content, with visible format guidance, column mapping, preview, and deduplication.
+  - Static Mailing Lists with visible contact membership, add/remove controls, and user-scoped membership validation.
+  - Tagging system.
   - Dynamic Segments with real-time condition evaluation (filters, tags, properties).
   - Smart **AudienceResolver** that automatically excludes unsubscribed, hard-bounced, complained, and suppressed contacts.
 - **Template Engine**:
   - HTML & plain text email template management.
+  - Card-based template library with an always-visible rendered preview.
+  - Selecting a template card reveals duplicate, test email, edit, and delete actions.
   - Personalization variable engine (`{{first_name}}`, `{{company}}`, custom attributes).
   - Live preview and instant test email dispatch.
   - Automated tracking pixel and click URL rewriting.
@@ -48,6 +51,33 @@ MailForge is a high-performance, production-oriented bulk email campaign managem
   - Real-time campaign stats (Sent, Delivered, Open Rate, Click Rate, Bounce Rate, Unsubscribes).
   - Visual time-series engagement graphs (Recharts).
   - Global system performance dashboard.
+
+### Overview Dashboard
+
+The authenticated MailForge workspace opens on a focused overview designed for quick scanning:
+
+- A personalized workspace header with a primary **Create campaign** action.
+- KPI cards for total contacts, active campaigns, mailing lists, and reusable templates.
+- Seven-day campaign activity view with campaign count and sending trend.
+- A first-send setup checklist linking directly to Contacts, Templates, and Mailing Lists.
+- A recent campaigns list with status labels and an empty state for new workspaces.
+
+The overview uses MailForge-owned copy, marks, and styling throughout; it does not depend on third-party product branding or assets.
+
+Workspace pages show linked breadcrumbs at the top. Multi-step onboarding and campaign-building flows use numbered horizontal progress bars: each step is a circle connected by a track, the active step uses the primary MailForge color, completed steps use green, and upcoming steps use the secondary muted color.
+
+Mailing-list rows have an explicit **Manage contacts** action and can also be opened by selecting the list name. Contacts can be added from the user’s available contacts or removed from the selected list; deleting a list does not delete its contacts.
+
+### CSV Contact Import
+
+The Contacts page accepts either a local `.csv` file or pasted CSV content. The upload step shows the expected format before validation:
+
+```csv
+email,first_name,last_name,status
+alex@example.com,Alex,Johnson,subscribed
+```
+
+The `email` column is required. `first_name`, `last_name`, and `status` are optional. After validation, users can review detected columns, configure duplicate handling (`skip`, `merge`, or `overwrite`), preview the resulting contacts, and complete the import.
 
 ---
 
@@ -86,6 +116,379 @@ MailForge follows **Clean Architecture** and **Modular Monolith** principles wit
 3. **Infrastructure** implements **Application & Domain interfaces**.
 4. **Domain Layer** has zero dependencies on FastAPI, SQLAlchemy, PostgreSQL, Redis, ZeptoMail, or Zoho.
 5. **Design Patterns**: Repository Pattern, Service Layer Pattern, Strategy Pattern (Email Providers), Factory Pattern, Unit of Work, Adapter Pattern, DTO Pattern.
+
+## Low-Level Design (LLD)
+
+The implementation is a modular monolith. HTTP requests enter through FastAPI routers, are authenticated and given a database session through FastAPI dependencies, and then use application services or repositories. SQLAlchemy models and external provider clients remain in infrastructure. The React frontend calls the API through feature-specific service modules and renders the returned data in page components.
+
+### Runtime Component Diagram
+
+```mermaid
+flowchart LR
+  Browser[Browser]
+  App[React App\nApp.jsx]
+  Pages[Pages and components\nDashboardShell, CampaignsPage, ContactsPage]
+  ApiClients[Frontend API services\nauthApi, campaignApi, contactApi, ...]
+  Router[FastAPI routers\nauth, campaigns, contacts, templates, onboarding, ...]
+  Deps[FastAPI dependencies\nJWT validation + DB session]
+  Services[Application services\nCampaignService, TemplateService, ContactService, ...]
+  Renderer[TemplateRendererService]
+  Repositories[SQLAlchemy repositories\nBaseRepository + feature repositories]
+  Models[SQLAlchemy models]
+  Database[(PostgreSQL)]
+  Factory[EmailProviderFactory]
+  Provider[EmailProvider protocol]
+  Zepto[ZeptoMailProvider]
+  SMTP[SMTPProvider]
+  Celery[Celery tasks\napp/tasks]
+  Redis[(Redis broker)]
+  Tracking[Tracking router\nopen, click, unsubscribe]
+  Zoho[Zoho integration client]
+
+  Browser --> App --> Pages --> ApiClients --> Router
+  Router --> Deps
+  Router --> Services
+  Router --> Repositories
+  Services --> Repositories
+  Services --> Renderer
+  Services --> Factory
+  Repositories --> Models --> Database
+  Factory --> Provider
+  Provider --> Zepto
+  Provider --> SMTP
+  Router --> Celery
+  Celery --> Redis
+  Celery --> Services
+  Router --> Tracking
+  Services --> Zoho
+```
+
+### LLD Class Diagram
+
+```mermaid
+classDiagram
+  direction LR
+
+  class App {
+    +create_app() FastAPI
+    +lifespan(app)
+  }
+  class Router {
+    <<Presentation>>
+    +auth_router
+    +campaigns_router
+    +contacts_router
+    +templates_router
+    +onboarding_router
+    +tracking_router
+  }
+  class FastAPIDependencies {
+    <<Dependency Injection>>
+    +get_current_user_id(credentials) str
+    +get_current_user(user_id, db) User
+    +get_db() AsyncSession
+  }
+
+  class BaseService~RepositoryType~ {
+    <<Template Method>>
+    #repository RepositoryType
+  }
+  class CampaignService {
+    +VALID_STATUS_TRANSITIONS dict
+    +create_campaign(user_id, payload) dict
+    +update_campaign(user_id, campaign_id, payload) dict
+    +send_campaign(user_id, campaign_id) dict
+    +send_test_email(user_id, campaign_id, recipient_email) dict
+  }
+  class ContactService
+  class ContactImportService
+  class AuthService
+  class TemplateService
+  class TemplateRendererService {
+    <<Service / Facade>>
+    +replace_variables(content, variables) str
+    +render_html(template_html, variables, campaign_id, contact_id) str
+    +render_text(template_text, variables) str
+    +inject_tracking_pixel(html, campaign_id, contact_id) str
+    +inject_unsubscribe_link(html, contact_id, campaign_id) str
+  }
+
+  class BaseRepository~ModelType~ {
+    <<Repository>>
+    #session AsyncSession
+    +create(obj) ModelType
+    +get_by_id(entity_id) ModelType
+    +get_all() list
+    +update(obj) ModelType
+    +delete(obj)
+    +count() int
+  }
+  class UserRepository
+  class CampaignRepository {
+    +get_by_user_and_name(user_id, name) CampaignModel
+    +list_for_user(user_id) list
+    +create(campaign) CampaignModel
+  }
+  class ContactRepository
+  class TemplateRepository
+  class SQLAlchemyModels {
+    <<Persistence Model>>
+    +User
+    +Contact
+    +Campaign
+    +CampaignRecipient
+    +EmailTemplate
+    +MailingList
+    +Segment
+    +Tag
+    +Suppression
+    +EmailEvent
+  }
+  class AsyncSession {
+    <<Unit of Work boundary>>
+    +add(obj)
+    +commit()
+    +rollback()
+    +refresh(obj)
+  }
+
+  class Campaign {
+    <<Domain Entity>>
+    +id str
+    +user_id str
+    +template_id str
+    +name str
+    +subject str
+    +status CampaignStatus
+    +campaign_type CampaignType
+    +audience_criteria dict
+    +is_active() bool
+  }
+  class CampaignRecipient {
+    <<Domain Entity>>
+    +campaign_id str
+    +contact_id str
+    +email str
+    +status str
+    +delivered_at datetime
+    +failed_reason str
+  }
+  class EmailEvent {
+    <<Domain Entity>>
+    +campaign_id str
+    +contact_id str
+    +email str
+    +event_type str
+    +event_data dict
+  }
+  class CampaignStatus {
+    <<Enumeration>>
+    DRAFT
+    SCHEDULED
+    QUEUED
+    SENDING
+    SENT
+    PAUSED
+    CANCELLED
+    FAILED
+  }
+  class CampaignType {
+    <<Enumeration>>
+    BULK
+    TRANSACTIONAL
+    AUTOMATION
+    NEWSLETTER
+  }
+
+  class EmailProvider {
+    <<Protocol / Strategy>>
+    +provider_name str
+    +send(to_email, subject, body, from_email, metadata) EmailSendResult
+  }
+  class BaseEmailProvider {
+    <<Template Method>>
+    +send(...) EmailSendResult
+  }
+  class ZeptoMailProvider {
+    <<Adapter>>
+    +provider_name zeptomail
+    +send(...) EmailSendResult
+  }
+  class SMTPProvider {
+    <<Adapter>>
+    +provider_name smtp
+    +send(...) EmailSendResult
+  }
+  class MockEmailProvider {
+    <<Adapter>>
+    +provider_name mock
+    +send(...) EmailSendResult
+  }
+  class EmailSendResult {
+    +success bool
+    +provider str
+    +status str
+    +to_email str
+    +message_id str
+    +error str
+    +metadata dict
+  }
+  class EmailProviderFactory {
+    <<Factory>>
+    +get_provider(provider_name) EmailProvider
+  }
+
+  class CeleryTasks {
+    <<Producer / Consumer>>
+    +send_campaign_email_task(recipient_id, campaign_id, user_id)
+    +process_queued_campaigns()
+  }
+  class Redis {
+    <<Message Broker>>
+  }
+  class ApiServiceModules {
+    <<Frontend Facade>>
+    +authApi
+    +campaignApi
+    +contactApi
+    +templateApi
+    +listApi
+  }
+  class ReactPages {
+    <<Frontend UI>>
+    +App
+    +DashboardShell
+    +CampaignsPage
+    +ContactsPage
+    +TemplatesPage
+    +OnboardingPage
+  }
+  class OnboardingDTO {
+    <<DTO>>
+    +subscriber_count_bracket str
+    +previous_tool str
+    +business_industry str
+    +business_website str
+    +compliance_address dict
+    +user_primary_goal str
+    +product_updates_consent bool
+    +onboarding_phase int
+    +onboarding_completed bool
+  }
+
+  App *-- Router : registers
+  Router --> FastAPIDependencies : Depends()
+  Router --> CampaignService : invokes
+  Router --> OnboardingDTO : validates / serializes
+  CampaignService --> CampaignRepository : uses
+  CampaignService --> TemplateRepository : uses
+  CampaignService --> TemplateRendererService : renders
+  CampaignService --> EmailProviderFactory : selects provider
+  BaseService~RepositoryType~ <|-- AuthService
+  BaseService~RepositoryType~ <|-- ContactService
+  BaseService~RepositoryType~ <|-- ContactImportService
+  BaseService~RepositoryType~ <|-- TemplateService
+  BaseRepository~ModelType~ <|-- UserRepository
+  BaseRepository~ModelType~ <|-- CampaignRepository
+  BaseRepository~ModelType~ <|-- ContactRepository
+  BaseRepository~ModelType~ <|-- TemplateRepository
+  BaseRepository~ModelType~ --> AsyncSession : transaction boundary
+  UserRepository --> SQLAlchemyModels : persists User
+  CampaignRepository --> SQLAlchemyModels : maps Campaign
+  ContactRepository --> SQLAlchemyModels : persists Contact
+  TemplateRepository --> SQLAlchemyModels : persists EmailTemplate
+  CampaignService --> Campaign : creates / validates
+  Campaign --> CampaignStatus : has
+  Campaign --> CampaignType : has
+  Campaign "1" --> "many" CampaignRecipient : contains
+  Campaign "1" --> "many" EmailEvent : records
+  EmailProviderFactory --> EmailProvider : returns
+  EmailProvider <|.. BaseEmailProvider : implements contract
+  BaseEmailProvider <|-- ZeptoMailProvider : Strategy
+  BaseEmailProvider <|-- SMTPProvider : Strategy
+  BaseEmailProvider <|-- MockEmailProvider : Strategy
+  ZeptoMailProvider ..> EmailSendResult : returns
+  SMTPProvider ..> EmailSendResult : returns
+  MockEmailProvider ..> EmailSendResult : returns
+  CeleryTasks --> Redis : publishes / consumes
+  CeleryTasks --> CampaignService : background workflow
+  ReactPages --> ApiServiceModules : calls
+  ApiServiceModules --> Router : HTTP / JSON
+```
+
+### Class Diagram Pattern Legend
+
+- `<<Presentation>>`: FastAPI routers expose HTTP endpoints and delegate work inward.
+- `<<Dependency Injection>>`: FastAPI supplies the database session and authenticated user through `Depends`.
+- `<<Service / Facade>>`: application services coordinate use cases; `TemplateRendererService` exposes a simple rendering API over several operations.
+- `<<Repository>>`: repositories isolate common and feature-specific SQLAlchemy persistence operations.
+- `<<DTO>>`: Pydantic schemas define request and response contracts, including onboarding data.
+- `<<Strategy>>`: `EmailProvider` lets delivery use ZeptoMail, SMTP, or mock behavior through one contract.
+- `<<Factory>>`: `EmailProviderFactory` chooses and constructs the provider implementation.
+- `<<Adapter>>`: provider classes translate MailForge send requests to external provider APIs and return `EmailSendResult`.
+- `<<Unit of Work boundary>>`: `AsyncSession` groups persistence changes and commits or rolls them back; there is no separate `UnitOfWork` class.
+- `<<Producer / Consumer>>`: Celery tasks process queued work through Redis.
+- `<<Frontend Facade>>`: frontend API modules hide Axios configuration and authorization headers from page components.
+
+### Request and Delivery Sequence
+
+```mermaid
+sequenceDiagram
+  participant UI as React page
+  participant Client as Frontend API service
+  participant Route as FastAPI router
+  participant Auth as JWT dependency
+  participant Service as Application service
+  participant Repo as Repository
+  participant DB as PostgreSQL
+  participant Factory as EmailProviderFactory
+  participant Provider as ZeptoMail or SMTP
+
+  UI->>Client: Submit campaign or request data
+  Client->>Route: HTTP request with Bearer token
+  Route->>Auth: Resolve current user and DB session
+  Auth->>Repo: Load user
+  Repo->>DB: SELECT user
+  DB-->>Repo: User record
+  Repo-->>Auth: Authenticated user
+  Route->>Service: Validate and execute use case
+  Service->>Repo: Read or write domain data
+  Repo->>DB: SQLAlchemy query / transaction
+  DB-->>Repo: Persisted model
+  Service->>Factory: Select configured provider
+  Factory-->>Service: Provider implementation
+  Service->>Provider: Send normalized email request
+  Provider-->>Service: EmailSendResult
+  Service-->>Route: Serialized result
+  Route-->>Client: JSON response
+  Client-->>UI: Update page state
+```
+
+### Pattern-to-Code Map
+
+| LLD pattern | Where it is used | Implementation evidence and role |
+| :--- | :--- | :--- |
+| **Layered / Clean Architecture** | `backend/app/api`, `application`, `domain`, `infrastructure` | Routers handle HTTP, services handle orchestration, entities hold domain concepts, and repositories/providers handle persistence and integrations. |
+| **Modular Monolith** | `backend/app/api/routes` and matching services/repositories | Auth, campaigns, contacts, templates, lists, tags, segments, suppressions, onboarding, and tracking are isolated modules inside one FastAPI application. |
+| **Dependency Injection** | `backend/app/core/dependencies.py`, route function parameters | FastAPI `Depends` injects the authenticated user, JWT-derived user ID, and `AsyncSession`; routes do not construct those concerns themselves. |
+| **Repository** | `backend/app/infrastructure/repositories/base.py` and feature repositories | `BaseRepository` centralizes CRUD behavior; `UserRepository`, `CampaignRepository`, `ContactRepository`, `TemplateRepository`, and others add feature-specific queries. |
+| **Service Layer** | `backend/app/application/services/*.py` | `CampaignService`, `AuthService`, `ContactService`, `TemplateService`, `MailingListService`, and related classes coordinate validation and business workflows above persistence. |
+| **DTO / Data Mapper boundary** | `backend/app/schemas/*.py`, route responses | Pydantic request and response schemas such as `OnboardingPhaseOneRequest` and `OnboardingPhaseOneResponse` define the HTTP data contract instead of exposing arbitrary database payloads. |
+| **Strategy / Polymorphism** | `backend/app/infrastructure/email/providers/base.py`, `smtp.py`, `zeptomail.py`, `mock.py` | `EmailProvider` defines the common `send` contract; concrete providers can be selected without changing the campaign service. |
+| **Factory** | `backend/app/infrastructure/email/providers/factory.py` | `EmailProviderFactory.get_provider()` creates the mock, SMTP, or ZeptoMail implementation from a provider name. |
+| **Adapter** | `SMTPProvider`, `ZeptoMailProvider`, and Zoho infrastructure clients | External email and campaign APIs are translated into MailForge-facing provider/client contracts and normalized results such as `EmailSendResult`. |
+| **Unit of Work / transaction boundary** | `AsyncSession` usage in repositories, routes, and services | SQLAlchemy sessions group writes and call `commit`, `refresh`, and `rollback` around a request or task. This is a lightweight transaction boundary rather than a dedicated `UnitOfWork` class. |
+| **Template Method / shared base class** | `BaseService`, `BaseRepository`, `BaseEmailProvider` | Shared constructors and CRUD/provider scaffolding are defined once and specialized by feature implementations. |
+| **State Machine** | `CampaignService.VALID_STATUS_TRANSITIONS` | Campaign lifecycle transitions are explicitly allowed from `draft`, `scheduled`, `queued`, `sending`, and `paused` states, preventing invalid status changes. |
+| **Producer / Consumer with retry** | `backend/app/tasks`, `backend/app/core/celery.py`, Redis | API/application code produces background work; Celery workers consume it through Redis and retry transient email failures with backoff. |
+| **Facade** | Frontend modules in `frontend/src/services` | `authApi`, `campaignApi`, `contactApi`, and related modules provide small feature-focused facades over Axios and attach authentication headers consistently. |
+
+### Important Boundary Notes
+
+- The current `backend/app/domain/interfaces` directory contains only `__init__.py`; repository behavior is currently expressed through concrete repository classes and Python typing rather than a separate repository-interface hierarchy.
+- `CampaignService` directly uses SQLAlchemy models and queries in parts of campaign dispatch, so the architecture is layered but not completely dependency-inverted.
+- `AsyncSession` provides transaction handling, but there is no dedicated `UnitOfWork` abstraction in the current source.
+- The frontend is implemented with JavaScript/JSX in `frontend/src`, despite older documentation labels mentioning TypeScript and Tailwind.
 
 ---
 
@@ -229,6 +632,10 @@ Celery workers process asynchronous workloads via Redis queues:
 - `POST /api/auth/refresh` - Refresh access token
 - `POST /api/auth/logout` - Revoke refresh token
 - `GET /api/auth/me` - Get current user profile
+
+Authentication uses a short-lived JWT access token plus a database-backed refresh token. The frontend Axios client retries a protected request once after a 401 response by calling `/auth/refresh`; concurrent 401 responses share the same refresh request. If the refresh token is missing, revoked, expired, or invalid, local auth state is cleared and the user is returned to sign-in. Protected backend routes reject malformed, invalid, and expired JWTs with 401 responses and reject non-active user accounts with 403 responses. Access and refresh lifetimes are controlled by `ACCESS_TOKEN_EXPIRE_MINUTES` and `ACCESS_TOKEN_EXPIRE_DAYS`.
+
+For local Vite development, the proxy forwards all frontend API route groups, including `/auth`, `/onboarding`, `/track`, and the authenticated workspace resources, to the FastAPI server on port 8000.
 
 ### Contacts & Audiences
 - `GET /api/contacts` - List & filter contacts (pagination & search)

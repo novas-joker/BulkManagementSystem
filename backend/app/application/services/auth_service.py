@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from app.application.services.base_service import BaseService
 from app.core.security import create_access_token, decode_token, hash_password, verify_password
+from app.core.config import settings
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.infrastructure.repositories.refresh_token_repository import RefreshTokenRepository
 
@@ -23,7 +24,7 @@ class AuthService(BaseService[UserRepository]):
 
         access_token = create_access_token(
             {"sub": user.id, "email": user.email, "role": user.role},
-            expires_delta=timedelta(minutes=30),
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         # Generate refresh token
@@ -32,7 +33,11 @@ class AuthService(BaseService[UserRepository]):
 
         async with AsyncSessionLocal() as db:
             refresh_token_repo = RefreshTokenRepository(db)
-            await refresh_token_repo.create_for_user(user.id, refresh_token, timedelta(days=7))
+            await refresh_token_repo.create_for_user(
+                user.id,
+                refresh_token,
+                timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS),
+            )
 
         return {
             "access_token": access_token,
@@ -63,7 +68,7 @@ class AuthService(BaseService[UserRepository]):
         created = await self.repository.create(user)
         access_token = create_access_token(
             {"sub": created.id, "email": created.email, "role": created.role},
-            expires_delta=timedelta(minutes=30),
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         # Generate refresh token
@@ -72,7 +77,11 @@ class AuthService(BaseService[UserRepository]):
 
         async with AsyncSessionLocal() as db:
             refresh_token_repo = RefreshTokenRepository(db)
-            await refresh_token_repo.create_for_user(created.id, refresh_token, timedelta(days=7))
+            await refresh_token_repo.create_for_user(
+                created.id,
+                refresh_token,
+                timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS),
+            )
 
         return {
             "access_token": access_token,
@@ -103,7 +112,7 @@ class AuthService(BaseService[UserRepository]):
         # Create new access token
         new_access_token = create_access_token(
             {"sub": user.id, "email": user.email, "role": user.role},
-            expires_delta=timedelta(minutes=30),
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         return {
