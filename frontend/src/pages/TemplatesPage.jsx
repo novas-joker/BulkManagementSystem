@@ -209,6 +209,18 @@ export default function TemplatesPage() {
     setShowForm(false)
   }
 
+  const renderCardPreview = (content) => (content || '<p>Your template preview will appear here.</p>')
+    .replace(/\{\{first_name\}\}/g, 'Alex')
+    .replace(/\{\{last_name\}\}/g, 'Johnson')
+    .replace(/\{\{email\}\}/g, 'alex@example.com')
+
+  const handleCardKeyDown = (event, templateId) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      setExpandedId((current) => (current === templateId ? null : templateId))
+    }
+  }
+
   return (
     <div className="page-content">
       <div className="page-header">
@@ -407,68 +419,31 @@ export default function TemplatesPage() {
       ) : templates.length === 0 ? (
         <p className="empty-state">No templates yet. Create one to get started.</p>
       ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Subject</th>
-                <th>Type</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((template) => (
-                <tr key={template.id}>
-                  <td>
-                    <strong>{template.name}</strong>
-                  </td>
-                  <td>{template.subject}</td>
-                  <td>{template.template_type}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => handlePreview(template.id)}
-                    >
-                      Preview
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => handleDuplicate(template)}
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => {
-                        setTestEmailModal({ visible: true, templateId: template.id })
-                        setTestForm({ recipient_email: '' })
-                      }}
-                    >
-                      Test Email
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => handleEdit(template)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => handleDelete(template.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="template-card-grid">
+          {templates.map((template) => {
+            const isExpanded = expandedId === template.id
+            return (
+              <article
+                className={`template-card ${isExpanded ? 'is-expanded' : ''}`}
+                key={template.id}
+                role="button"
+                tabIndex="0"
+                aria-expanded={isExpanded}
+                onClick={() => setExpandedId((current) => (current === template.id ? null : template.id))}
+                onKeyDown={(event) => handleCardKeyDown(event, template.id)}
+              >
+                <div className="template-card-top"><span className="template-card-type">{template.template_type || 'standard'}</span><span className="template-card-hint">{isExpanded ? 'Close details' : 'Open details'} <span aria-hidden="true">↗</span></span></div>
+                <div className="template-card-preview" dangerouslySetInnerHTML={{ __html: renderCardPreview(template.html_content) }} />
+                <div className="template-card-info"><h3>{template.name}</h3><p>{template.subject || 'No subject line'}</p></div>
+                {isExpanded && <div className="template-card-actions" onClick={(event) => event.stopPropagation()}>
+                  <button type="button" className="secondary-button" onClick={() => handleDuplicate(template)}>Duplicate</button>
+                  <button type="button" className="secondary-button" onClick={() => { setTestEmailModal({ visible: true, templateId: template.id }); setTestForm({ recipient_email: '' }) }}>Test email</button>
+                  <button type="button" className="secondary-button" onClick={() => handleEdit(template)}>Edit</button>
+                  <button type="button" className="template-delete-button" onClick={() => handleDelete(template.id)}>Delete</button>
+                </div>}
+              </article>
+            )
+          })}
         </div>
       )}
     </div>

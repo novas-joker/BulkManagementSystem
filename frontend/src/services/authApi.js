@@ -9,6 +9,48 @@ const api = axios.create({
   },
 })
 
+let refreshRequest = null
+
+const notifyAuthExpired = () => {
+  clearAuthState()
+  window.dispatchEvent(new Event('mailforge-auth-expired'))
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+    const isUnauthorized = error.response?.status === 401
+    const isAuthRequest = originalRequest?.url?.startsWith('/auth/')
+
+    if (!isUnauthorized || !originalRequest || originalRequest._authRetry || isAuthRequest) {
+      return Promise.reject(error)
+    }
+
+    if (!getRefreshToken()) {
+      notifyAuthExpired()
+      return Promise.reject(error)
+    }
+
+    originalRequest._authRetry = true
+
+    try {
+      refreshRequest ||= refreshAccessToken()
+      await refreshRequest
+      originalRequest.headers = {
+        ...originalRequest.headers,
+        Authorization: `Bearer ${getAuthToken()}`,
+      }
+      return api(originalRequest)
+    } catch (refreshError) {
+      notifyAuthExpired()
+      return Promise.reject(refreshError)
+    } finally {
+      refreshRequest = null
+    }
+  },
+)
+
 export const saveAuthState = (token, refreshToken, user) => {
   localStorage.setItem('mailforge_token', token)
   if (refreshToken) {
@@ -66,7 +108,7 @@ export const refreshAccessToken = async () => {
   
   // Save new access token but keep the same refresh token
   const user = getStoredUser()
-  saveAuthState(data.access_token, refreshToken, user)
+  saveAuthState(data.access_token, data.refresh_token || refreshToken, data.user || user)
   
   return data
 }

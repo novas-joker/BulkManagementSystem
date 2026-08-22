@@ -1,3 +1,5 @@
+import { toast } from 'react-toastify'
+
 const listeners = new Set()
 
 export function getApiErrorMessage(error, fallback = 'Something went wrong. Please try again.') {
@@ -29,7 +31,7 @@ function publish(event) {
 }
 
 export function showToast(message, tone = 'success') {
-  publish({ type: 'toast', message, tone })
+  toast(message, { type: tone })
 }
 
 export function confirmDialog({ title, message, confirmLabel = 'Confirm', tone = 'danger' }) {

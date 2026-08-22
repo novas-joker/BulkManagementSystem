@@ -38,6 +38,14 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/onboarding': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/track': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { requestPasswordReset } from '../services/authApi'
+import { ArrowUpRight, Check, Eye, EyeOff, LockKeyhole, Mail, UserRound } from 'lucide-react'
 
 function AuthLogo() {
   return <span className="auth-logo"><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M4.5 9.5 17 19 29.5 9.5v15H4.5z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"/><path d="m5 9 12 9 12-9M17 19V5m-3.8 3.8L17 5l3.8 3.8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg><span><strong>MailForge</strong><small>Bulk Email for Gmail</small></span></span>
@@ -14,17 +15,17 @@ function MailboxIllustration() {
 }
 
 function FieldIcon({ type }) {
-  if (type === 'person') return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="6" r="3"/><path d="M4 17c.6-3.2 2.6-5 6-5s5.4 1.8 6 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-  if (type === 'email') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="4" width="15" height="12" rx="2"/><path d="m3 5 7 5 7-5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="2"/><path d="M6.5 9V6.8A3.5 3.5 0 0 1 13.5 7v2" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="10" cy="13" r="1" fill="currentColor"/></svg>
+  if (type === 'person') return <UserRound size={18} aria-hidden="true" />
+  if (type === 'email') return <Mail size={18} aria-hidden="true" />
+  return <LockKeyhole size={18} aria-hidden="true" />
 }
 
 function EyeIcon({ hidden }) {
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 10s2.7-4 7.5-4 7.5 4 7.5 4-2.7 4-7.5 4-7.5-4-7.5-4Z" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="10" cy="10" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>{hidden && <path d="m3 3 14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>}</svg>
+  return hidden ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />
 }
 
 function Benefits() {
-  return <div className="auth-benefits"><div><span>✓</span><p><strong>Secure by default</strong><small>Your data is encrypted and never shared.</small></p></div><div><span>↗</span><p><strong>Works in Gmail</strong><small>Seamlessly connect and send emails from Gmail.</small></p></div><div><span>⌁</span><p><strong>Track what matters</strong><small>Monitor opens, clicks, and results in real time.</small></p></div></div>
+  return <div className="auth-benefits"><div><span><Check size={16} /></span><p><strong>Secure by default</strong><small>Your data is encrypted and never shared.</small></p></div><div><span><ArrowUpRight size={16} /></span><p><strong>Works in Gmail</strong><small>Seamlessly connect and send emails from Gmail.</small></p></div><div><span><Mail size={16} /></span><p><strong>Track what matters</strong><small>Monitor opens, clicks, and results in real time.</small></p></div></div>
 }
 
 function SignupLetter() {
