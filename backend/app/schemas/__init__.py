@@ -7,6 +7,8 @@ from .auth import (
     UserRegisterRequest,
     UserSummary,
     RefreshTokenRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
 from .campaign import CampaignCreateRequest, CampaignResponse, CampaignUpdateRequest
 from .contact import ContactCreateRequest, ContactResponse, ContactUpdateRequest
@@ -23,6 +25,8 @@ __all__ = [
     "UserSummary",
     "UserProfileResponse",
     "RefreshTokenRequest",
+    "ForgotPasswordRequest",
+    "ResetPasswordRequest",
     "CampaignCreateRequest",
     "CampaignUpdateRequest",
     "CampaignResponse",

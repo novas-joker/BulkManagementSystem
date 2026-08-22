@@ -114,6 +114,7 @@ function TestimonialLetter({ item, index }) { const letter = <article className=
 export default function LandingPage({ onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [selectedFeature, setSelectedFeature] = useState(null)
+  const [activeFeatureIndex, setActiveFeatureIndex] = useState(0)
   const navItems = ['Features', 'Templates', 'About']
   const go = (target) => { setMenuOpen(false); onNavigate(target) }
   useEffect(() => {
@@ -147,14 +148,31 @@ export default function LandingPage({ onNavigate }) {
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [selectedFeature])
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+
+    let frameId
+    let lastAdvance = performance.now()
+    const advance = (timestamp) => {
+      if (timestamp - lastAdvance >= 4800) {
+        setActiveFeatureIndex((current) => (current + 1) % features.length)
+        lastAdvance = timestamp
+      }
+      frameId = window.requestAnimationFrame(advance)
+    }
+
+    frameId = window.requestAnimationFrame(advance)
+    return () => window.cancelAnimationFrame(frameId)
+  }, [])
 
   const openFeature = (title) => setSelectedFeature(featureDetails[title])
+  const moveFeature = (direction) => setActiveFeatureIndex((current) => (current + direction + features.length) % features.length)
 
   return <div className="landing-shell premium-landing">
     <header className="site-header"><nav className="site-nav" aria-label="Main navigation"><a className="brand-link" href="#top"><Logo /></a><div className="desktop-nav">{navItems.map((item) => <a key={item} href="#features">{item}</a>)}</div><div className="nav-actions"><button className="sign-in" onClick={() => go('login')}>Sign in</button><button className="nav-cta" onClick={() => go('register')}>Get started free <ArrowIcon /></button></div><button className="menu-toggle" aria-label="Toggle navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button></nav>{menuOpen && <div className="mobile-menu">{navItems.map((item) => <a key={item} href="#features" onClick={() => setMenuOpen(false)}>{item}</a>)}<button onClick={() => go('login')}>Sign in</button><button className="nav-cta" onClick={() => go('register')}>Get started free <ArrowIcon /></button></div>}</header>
     <main id="top">
       <section className="hero-section premium-hero"><AbstractBackground /><div className="hero-copy"><div className="integration-badge"><GoogleIcon /> Built for Gmail. <strong>Powered for growth.</strong></div><h1><span>Send bulk emails</span><span className="accent-blue">from Gmail.</span><span className="accent-violet">Forge real results.</span></h1><p>MailForge helps you create, send, and track powerful email campaigns - right inside your Gmail workspace. No complicated setup. Just results.</p><div className="hero-cta"><button className="primary-button" onClick={() => go('register')}><GoogleIcon /> Connect with Google <ArrowIcon /></button><a className="secondary-button" href="#features"><PlayIcon /> Watch demo</a></div><div className="trust-row"><div><span className="trust-icon">&#10003;</span><span><strong>100% Secure</strong><small>Your data is safe and encrypted</small></span></div><div><span className="trust-icon">G</span><span><strong>Works in Gmail</strong><small>No extra tools or extensions</small></span></div><div><span className="trust-icon">&#8599;</span><span><strong>Track everything</strong><small>Opens, clicks, bounces and more</small></span></div></div></div><DashboardPreview /></section>
-      <section className="features-section" id="features"><div className="section-intro"><span className="eyebrow">One calm workspace</span><h2>Everything you need to run successful email campaigns</h2><p>Powerful tools. Seamless experience. Better results.</p></div><FeatureBook isOpen={Boolean(selectedFeature)} /><div className="feature-grid">{features.map(([number, title, description, icon]) => <article className="feature-card" key={title} role="button" tabIndex="0" onClick={() => openFeature(title)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openFeature(title) } }}><div className="feature-card-top"><span className="feature-number">{number}</span><FeatureIcon type={icon} /></div><h3>{title}</h3><p>{description}</p><span className="feature-card-action" aria-hidden="true"><ArrowIcon /></span></article>)}</div><FeatureDialog feature={selectedFeature} onClose={() => setSelectedFeature(null)} /></section>
+      <section className="features-section" id="features"><div className="section-intro"><span className="eyebrow">One calm workspace</span><h2>Everything you need to run successful email campaigns</h2><p>Powerful tools. Seamless experience. Better results.</p></div><FeatureBook isOpen={Boolean(selectedFeature)} /><div className="feature-carousel"><button className="feature-chevron feature-chevron--previous" type="button" aria-label="Show previous feature" onClick={() => moveFeature(-1)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></button><div className="feature-track">{features.map(([number, title, description, icon], index) => { const offset = (index - activeFeatureIndex + features.length) % features.length; const normalizedOffset = offset > features.length / 2 ? offset - features.length : offset; return <article className={`feature-card ${normalizedOffset === 0 ? 'is-active' : ''}`} key={title} style={{ '--feature-offset': normalizedOffset }} aria-hidden={normalizedOffset !== 0} role="button" tabIndex={normalizedOffset === 0 ? 0 : -1} onClick={() => { setActiveFeatureIndex(index); openFeature(title) }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setActiveFeatureIndex(index); openFeature(title) } }}><div className="feature-card-top"><span className="feature-number">{number}</span><FeatureIcon type={icon} /></div><h3>{title}</h3><p>{description}</p><span className="feature-card-action" aria-hidden="true"><ArrowIcon /></span></article> })}</div><button className="feature-chevron feature-chevron--next" type="button" aria-label="Show next feature" onClick={() => moveFeature(1)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></button><div className="feature-progress" role="tablist" aria-label="Choose a feature"><span className="feature-progress-line" aria-hidden="true"><span style={{ height: `${((activeFeatureIndex + 1) / features.length) * 100}%` }} /></span>{features.map(([number, title], index) => <button className="feature-progress-step" key={title} type="button" role="tab" aria-label={`Show feature ${number}`} aria-selected={activeFeatureIndex === index} onClick={() => setActiveFeatureIndex(index)}><span>{number}</span></button>)}</div></div><FeatureDialog feature={selectedFeature} onClose={() => setSelectedFeature(null)} /></section>
       <section className="testimonials-section"><div className="testimonial-heading"><span className="eyebrow">The delivery story</span><h2>Loved by marketers.<br /><span>Delivered by MailForge.</span></h2><p>Good campaigns do more than arrive. They create a moment worth responding to.</p></div><div className="mailbox-scene"><div className="scene-envelope scene-envelope-one">[ ]</div><div className="scene-envelope scene-envelope-two">[ ]</div><MailboxIllustration /><div className="letters-grid">{testimonials.map((item, index) => <TestimonialLetter item={item} index={index} key={item[0]} />)}</div></div></section>
       <section className="final-cta"><span className="cta-paper paper-left">/</span><span className="cta-paper paper-right">*</span><div><span className="eyebrow">Make every send count</span><h2>Ready to forge better connections?</h2><p>Join businesses sending smarter emails with MailForge.</p><button className="light-button" onClick={() => go('register')}>Get started free <ArrowIcon /></button></div></section>
     </main>

@@ -1,10 +1,16 @@
 """ZeptoMail provider adapter."""
 from __future__ import annotations
 
+import json
+import logging
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from typing import Any
 
 from app.core.config import settings
 from app.infrastructure.email.providers.base import BaseEmailProvider, EmailSendResult
+
+logger = logging.getLogger(__name__)
 
 
 class ZeptoMailProvider(BaseEmailProvider):
@@ -47,20 +53,41 @@ class ZeptoMailProvider(BaseEmailProvider):
                 },
             )
 
-        # Real ZeptoMail API integration is intentionally left as a runtime hook.
-        return EmailSendResult(
-            success=True,
-            provider=self.provider_name,
-            status="sent",
-            to_email=to_email,
-            message_id="zeptomail-message-id",
-            metadata={
-                "api_url": self.api_url,
-                "subject": subject,
-                "body_length": len(body),
-                "from_email": from_email,
-                "cc": cc or [],
-                "bcc": bcc or [],
-                "metadata": metadata or {},
+        payload = {
+            "from": {"address": from_email},
+            "to": [{"email_address": {"address": to_email}}],
+            "subject": subject,
+            "htmlbody": body,
+        }
+        request = Request(
+            self.api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Zoho-enczapikey {self.token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
             },
+            method="POST",
         )
+
+        try:
+            with urlopen(request, timeout=15) as response:
+                response_body = json.loads(response.read().decode("utf-8") or "{}")
+            return EmailSendResult(
+                success=True,
+                provider=self.provider_name,
+                status="sent",
+                to_email=to_email,
+                message_id=response_body.get("request_id") or response_body.get("message_id"),
+                metadata={"api_url": self.api_url, "subject": subject, "metadata": metadata or {}},
+            )
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            logger.error("ZeptoMail password reset delivery failed: %s", type(exc).__name__)
+            return EmailSendResult(
+                success=False,
+                provider=self.provider_name,
+                status="failed",
+                to_email=to_email,
+                error="Email provider request failed.",
+                metadata={"api_url": self.api_url, "subject": subject, "metadata": metadata or {}},
+            )

@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import smtplib
+import logging
 from email.message import EmailMessage
 from typing import Any
 
 from app.core.config import settings
 from app.infrastructure.email.providers.base import BaseEmailProvider, EmailSendResult
+
+logger = logging.getLogger(__name__)
 
 
 class SMTPProvider(BaseEmailProvider):
@@ -32,6 +35,13 @@ class SMTPProvider(BaseEmailProvider):
         metadata: dict[str, Any] | None = None,
     ) -> EmailSendResult:
         if not self.host or not self.username or not self.password:
+            logger.error(
+                "SMTP password reset email not configured: host=%s port=%s username_present=%s password_present=%s",
+                self.host,
+                self.port,
+                bool(self.username),
+                bool(self.password),
+            )
             return EmailSendResult(
                 success=False,
                 provider=self.provider_name,
@@ -48,6 +58,7 @@ class SMTPProvider(BaseEmailProvider):
             )
 
         try:
+            logger.info("SMTP connection starting: host=%s port=%s recipient=%s", self.host, self.port, to_email)
             message = EmailMessage()
             message["Subject"] = subject
             message["From"] = from_email
@@ -67,6 +78,8 @@ class SMTPProvider(BaseEmailProvider):
                 server.login(self.username, self.password)
                 server.send_message(message)
 
+            logger.info("SMTP accepted password reset email for %s", to_email)
+
             return EmailSendResult(
                 success=True,
                 provider=self.provider_name,
@@ -85,12 +98,13 @@ class SMTPProvider(BaseEmailProvider):
                 },
             )
         except Exception as exc:  # pragma: no cover - defensive path
+            logger.exception("SMTP password reset email failed for %s", to_email)
             return EmailSendResult(
                 success=False,
                 provider=self.provider_name,
                 status="failed",
                 to_email=to_email,
-                error=str(exc),
+                error=f"{type(exc).__name__}: {exc}",
                 metadata={
                     "host": self.host,
                     "port": self.port,

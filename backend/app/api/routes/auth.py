@@ -4,12 +4,53 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services import AuthService
+from app.application.services.password_reset_service import PasswordResetService
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.infrastructure.repositories import UserRepository
-from app.schemas import TokenResponse, UserLoginRequest, UserProfileResponse, UserRegisterRequest, RefreshTokenRequest
+from app.schemas import ForgotPasswordRequest, ResetPasswordRequest, TokenResponse, UserLoginRequest, UserProfileResponse, UserRegisterRequest, RefreshTokenRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset without revealing whether the email exists."""
+    service = PasswordResetService(db)
+    try:
+        await service.request_reset(str(payload.email))
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    return {"message": "If an account exists, a password reset link has been sent."}
+
+
+@router.get("/reset-password/validate")
+async def validate_reset_password_token(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Check whether a password reset token is still usable."""
+    valid = await PasswordResetService(db).validate_token(token)
+    return {"valid": valid}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a new password and invalidate existing refresh sessions."""
+    try:
+        await PasswordResetService(db).reset_password(payload.token, payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {"message": "Password reset successfully."}
 
 
 @router.post("/register", response_model=TokenResponse)
